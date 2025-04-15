@@ -1,0 +1,9 @@
+{
+  "display_name": "R",
+  "language": "R",
+  "argv": [
+    "/opt/conda/share/jupyter/kernels/ir/r.sh",
+    "--args",
+    "{connection_file}"
+  ]
+}

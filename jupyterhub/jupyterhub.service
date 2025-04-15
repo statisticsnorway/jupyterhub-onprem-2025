@@ -1,0 +1,15 @@
+[Unit]
+Description=Service file for jupyterhub
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+User=jupyterhub
+WorkingDirectory=/home/jupyterhub/jupyterhub-onprem/docker/jupyterhub
+ExecStart=/bin/docker compose -f docker-compose.yml --env-file /home/jupyterhub/secrets/compose/.env up -d
+ExecStop=/bin/docker compose -f docker-compose.yml stop
+
+[Install]
+WantedBy=multi-user.target

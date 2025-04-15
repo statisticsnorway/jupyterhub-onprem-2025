@@ -1,0 +1,84 @@
+# JupyterHub docker-compose configuration file
+version: "2"
+
+services:
+  hub-db:
+    image: nexus.ssb.no:8445/postgres:9.5
+    container_name: jupyterhub-db
+    restart: always
+    environment:
+      POSTGRES_DB: jupyterhub
+      PGDATA: /var/lib/postgresql/data
+    env_file:
+      - ~/secrets/postgres/postgres.env
+    volumes:
+      - "db:/var/lib/postgresql/data"
+
+  hub:
+    depends_on:
+      - hub-db
+    restart: always
+    image: ${DOCKER_HUB_IMAGE}
+    container_name: jupyterhub
+    volumes:
+      # Bind Docker socket on the host so we can connect to the daemon from
+      # within the container
+      - "/var/run/docker.sock:/var/run/docker.sock:rw"
+
+      # Bind Docker volume on host for JupyterHub database and cookie secrets
+      - "data:/data"
+
+        # Mounting ssb nfs shares
+      # - "/ssb:/ssb"
+
+        # Mounting SSL_CERT & SSL_KEY
+      # - "~/secrets/ssl:/srv/jupyterhub/secrets"
+
+        # Mounting /var/lib/sss so we can use sssd users from host
+      # - "/var/lib/sss:/var/lib/sss"
+
+    ports:
+      - "443:443"
+    links:
+      - hub-db
+    environment:
+      # All containers will join this network
+      DOCKER_NETWORK_NAME: jupyterhub-network
+      # JupyterHub will spawn this Notebook image for users
+      DOCKER_NOTEBOOK_IMAGE: ${DOCKER_NOTEBOOK_IMAGE}
+      # Using this run command (optional)
+      DOCKER_SPAWN_CMD: start-singleuser.sh
+      # Postgres db info
+      POSTGRES_DB: jupyterhub
+      POSTGRES_HOST: hub-db
+      # Should be passed on to jupyterlab instances
+      STATBANK_ENCRYPT_URL: http://statbank-authenticator:8080/encrypt
+      STATBANK_BASE_URL: ${STATBANK_BASE_URL}
+      JUPYTERHUB_HTTP_REFERER: ${JUPYTERHUB_HTTP_REFERER}
+      DAPLA_ENVIRONMENT: ${DAPLA_ENVIRONMENT}
+    env_file:
+      - ~/secrets/postgres/postgres.env
+    command: >
+      jupyterhub -f /srv/jupyterhub/jupyterhub_config.py
+
+  # statbank-authenticator:
+  #   image: ${STATBANK_AUTHENTICATOR_IMAGE}
+  #   container_name: statbank-authenticator
+  #   restart: always
+  #   environment:
+  #     ON_PREM: "True"
+  #   env_file:
+  #     - ~/secrets/statbank-authenticator/statbank.env
+
+volumes:
+  data:
+    external:
+      name: jupyterhub-data
+  db:
+    external:
+      name: jupyterhub-db-data
+
+networks:
+  default:
+    external:
+      name: jupyterhub-network
