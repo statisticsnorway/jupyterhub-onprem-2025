@@ -95,6 +95,25 @@ ENV LANG=nb_NO.UTF-8
 ENV LANGUAGE=nb_NO:nb
 ENV LC_ALL=nb_NO.UTF-8
 
+# adding a custom bashrc with git branch in PS1
+COPY common-bashrc /etc/skel/.bashrc
+# Set common codestyle settings and update old users with possible new files from /etc/skel
+RUN mkdir /etc/skel/.config && \
+    mkdir -p /usr/local/bin/before-notebook.d && \
+    echo 'tar -cf - -C /etc/skel . | tar --skip-old-files --directory /home/jovyan -xf -' \
+    >  /usr/local/bin/before-notebook.d/sync-skel.sh && \
+    chmod +x /usr/local/bin/before-notebook.d/sync-skel.sh
+
+COPY common-pycodestyle /etc/skel/.config/pycodestyle
+
+# Install ssb_gitconfig.py script
+RUN wget -O /usr/local/bin/ssb_gitconfig.py https://raw.githubusercontent.com/statisticsnorway/kvakk-git-tools/main/kvakk_git_tools/ssb_gitconfig.py
+RUN chmod +x /usr/local/bin/ssb_gitconfig.py
+
+COPY check-git-config.bash /usr/local/bin/check-git-config.sh
+RUN chmod +x /usr/local/bin/check-git-config.sh
+
+
 # # Set up proxy configuration
 # ENV https_proxy=http://proxy.ssb.no:3128
 # ENV no_proxy=nexus.ssb.no,git-adm.ssb.no,i.test.ssb.no,i.ssb.no,i.qa.ssb.no,data.ssb.no,github.com,api.github.com,codeload.github.com
@@ -105,11 +124,6 @@ ENV LC_ALL=nb_NO.UTF-8
 #     echo "update-ca-certificates" >> /usr/local/bin/start-notebook.d/update-certificate.sh && \
 #     chmod +x /usr/local/bin/start-notebook.d/update-certificate.sh
 
-# Set FELLES environment variable
-ENV FELLES=/ssb/bruker/felles
-ENV ARROW_THIRDPARTY_DEPENDENCY_DIR=$FELLES/R_pakker/arrow
-ENV ARROW_GCS=OFF
-ENV ARROW_S3=OFF
 
 # required by dapla team cli
 ENV DAPLA_TEAM_API_BASE_URL="http://dapla-team-api.dapla.svc.cluster.local/"

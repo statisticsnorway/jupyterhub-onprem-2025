@@ -1,4 +1,4 @@
-FROM r-minimal:latest
+FROM oracle:latest
 
 LABEL maintainer="Statistics Norway"
 
@@ -8,16 +8,16 @@ ENV PYTHON_VERSION=${PYTHON_VERSION}
 USER root
 
 # Install additional system packages
-RUN apt-get update -y && \
-    apt-get install -y --no-install-recommends \
-    iputils-ping \
-    build-essential \
-    libssl-dev \
-    libffi-dev \
-    python3-dev \
-    curl \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+ RUN apt-get update -y && \
+     apt-get install -y \
+     iputils-ping \
+     build-essential \
+     pandoc \
+#     libffi-dev \
+#     python3-dev \
+#     curl \
+     && apt-get clean \
+     && rm -rf /var/lib/apt/lists/*
 
 ARG CONDA_DIR=/opt/conda
 
@@ -30,27 +30,37 @@ RUN curl -L https://repo.anaconda.com/miniconda/Miniconda3-py${PYTHON_VERSION}_2
 # Add conda to PATH
 ENV PATH="${CONDA_DIR}/bin:${PATH}"
 
-# Create Python environment and initialize conda
-RUN conda create -y -n py311 python=3.11 && \
-    conda init bash && \
-    echo "conda activate py311" >> ~/.bashrc
+RUN sed -i "/^PATH=/c\PATH=$PATH" "$R_HOME/etc/Renviron.site"
 
 # Create and set permissions for user directories
-RUN mkdir -p ${HOME}/.local/lib && \
-    chown -R ${USERNAME}:${GROUPNAME} ${HOME}/.local
+# RUN mkdir -p ${HOME}/.local/lib && \
+#     chown -R ${USERNAME}:${GROUPNAME} ${HOME}/.local
 
 COPY requirements.txt /tmp/requirements.txt
 
-USER root
+# Copy Quarto and pipx install scripts
+COPY scripts /opt/scripts/
+RUN chmod +x -R /opt/scripts/
+RUN chown -R ${USERNAME}:${GROUPNAME} /opt/scripts/ 
+RUN chmod -R 700 /opt/scripts/
 
-# Install pipx and ensure it's in PATH
-RUN python3 -m pip install pipx && \
-    python3 -m pipx ensurepath
+RUN python -m pip install --user pipx && \
+    python -m pipx ensurepath && \
+    # Install Quarto latest version
+    /opt/scripts/install-quarto.sh && \
+    chmod +x /opt/scripts/pipx_install_packages.sh && \
+    /opt/scripts/pipx_install_packages.sh
+
+RUN /opt/install-texlive-packages.sh
+
+RUN mkdir -p /etc/jupyter
+COPY jupyter_lab_config.py /etc/jupyter
 
 # Install Python packages
 RUN python3 -m pip install --upgrade pip && \
     python3 -m pip install --upgrade jupyterhub jupyterlab-git==0.44.0 && \
     python3 -m pip install --upgrade nbdime==3.2.1 && \
+    echo "Installing Dapla tools.txt" && \
     python3 -m pip install --no-cache-dir -r /tmp/requirements.txt && \
     python3 -m pip install nbstripout && \
     python3 -m pip install papermill && \
@@ -78,8 +88,10 @@ RUN python3 -m pip install --upgrade pip && \
     python3 -m pip install pandas-gbq google-cloud-storage venv-pack nbdev && \
     python3 -m pip install cx-Oracle && \
     python3 -m pip install saspy && \
+    python3 -m pip install ipydatagrid && \
     python3 -m pip install pipx && \
-    python3 -m pip cache purge
+    python3 -m pip cache purge && \
+    rm /tmp/requirements.txt
 
 # Install and configure pipx packages
 RUN pipx install nox && \
@@ -101,6 +113,33 @@ ENV PIP_INDEX=https://pypi.org/pypi
 ENV PIP_INDEX_URL=https://pypi.org/simple
 ENV PIPENV_PYPI_MIRROR=$PIP_INDEX_URL
 ENV PIP_TRUSTED_HOST=pypi.org
+RUN pip config set global.index https://pypi.org/pypi --global && \
+    pip config set global.index-url https://pypi.org/simple --global && \
+    pip config set global.trusted-host pypi.org --global
+
+# Use proxy for https connections
+ENV https_proxy=http://proxy.ssb.no:3128
+ENV no_proxy=nexus.ssb.no,git-adm.ssb.no,i.test.ssb.no,i.ssb.no,i.qa.ssb.no,data.ssb.no,github.com,api.github.com,codeload.github.com
+
+# Pull and update ca-certificates
+RUN mkdir "/usr/local/bin/start-notebook.d" && \
+    echo "curl https://nexus.ssb.no/repository/certificate_repo/ssb/cert_Decrypt-CA.crt --output /usr/local/share/ca-certificates/cert_Decrypt-CA.crt" > /usr/local/bin/start-notebook.d/update-certificate.sh && \
+    echo "update-ca-certificates" >> /usr/local/bin/start-notebook.d/update-certificate.sh && \
+    chmod +x /usr/local/bin/start-notebook.d/update-certificate.sh
+
+# Set Dapla environment variables used to identify the service.
+ENV DAPLA_SERVICE=JUPYTERLAB
+ENV DAPLA_REGION=ON_PREM
+
+# Adding pythonForSsb in PYTHONPATH
+ENV PYTHONPATH=$PYTHONPATH:/ssb/bruker/felles/pythonForSsb
+
+# Set FELLES environment variable
+ENV FELLES=/ssb/bruker/felles
+ENV ARROW_THIRDPARTY_DEPENDENCY_DIR=$FELLES/R_pakker/arrow
+ENV ARROW_GCS=OFF
+ENV ARROW_S3=OFF
+
 
 # Copy the kernels. (pre-defined kernels are found at /opt/conda/share/jupyter/kernels)
 COPY kernels/ir /opt/conda/share/jupyter/kernels/ir/
@@ -110,12 +149,7 @@ COPY kernels/python3 /opt/conda/share/jupyter/kernels/python3/
 RUN chmod +x /opt/conda/share/jupyter/kernels/python3/python.sh
 RUN chmod +x /opt/conda/share/jupyter/kernels/ir/r.sh
 
-# Configure pip to use Nexus
-RUN pip config set global.index https://pypi.org/pypi --global && \
-    pip config set global.index-url https://pypi.org/simple --global && \
-    pip config set global.trusted-host pypi.org --global
 
-# Adding pythonForSsb in PYTHONPATH
-ENV PYTHONPATH=$PYTHONPATH:/ssb/bruker/felles/pythonForSsb
+USER 1000
 
 CMD ["bash"]
