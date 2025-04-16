@@ -51,13 +51,15 @@ RUN python -m pip install --user pipx && \
     chmod +x /opt/scripts/pipx_install_packages.sh && \
     /opt/scripts/pipx_install_packages.sh
 
-RUN /opt/install-texlive-packages.sh
+RUN /opt/scripts/install-texlive-packages.sh
 
-RUN mkdir -p /etc/jupyter
-COPY jupyter_lab_config.py /etc/jupyter
+# RUN mkdir -p /etc/jupyter
+# COPY jupyter_lab_config.py /etc/jupyter
 
 # Install Python packages
-RUN python3 -m pip install --upgrade pip && \
+RUN /opt/scripts/install-jupyterlab.sh && \
+    # Install JupyterLab extensions
+    python3 -m pip install --upgrade pip && \
     python3 -m pip install --upgrade jupyterhub jupyterlab-git==0.44.0 && \
     python3 -m pip install --upgrade nbdime==3.2.1 && \
     echo "Installing Dapla tools.txt" && \
@@ -149,7 +151,21 @@ COPY kernels/python3 /opt/conda/share/jupyter/kernels/python3/
 RUN chmod +x /opt/conda/share/jupyter/kernels/python3/python.sh
 RUN chmod +x /opt/conda/share/jupyter/kernels/ir/r.sh
 
+# COPY jupyter_notebook_extra_config.py /tmp/
+# RUN cat /tmp/jupyter_notebook_extra_config.py >> /etc/jupyter/jupyter_server_config.py && \
+#     # Remove support for legacy Notebook Server, see https://github.com/jupyter/docker-stacks/blob/main/base-notebook/Dockerfile#L64
+#     rm /etc/jupyter/jupyter_notebook_config.py && \
+#     chmod g-w /etc/jupyter/*.py && \
+#     rm -f /tmp/jupyter_notebook_extra_config.py
 
-USER 1000
+# Remove duplicate Python lib
+# RUN rm /usr/bin/python3 && ln -s /opt/conda/bin/python3 /usr/bin/python3
+
+#Prevent installation of extentions, by removing write privilege in extension folders.
+RUN chmod u-w  /opt/conda/share/jupyter/labextensions
+RUN chmod u-w  /opt/conda/share/jupyter/nbextensions
+RUN chmod u-w  /opt/conda/share/jupyter/lab/extensions
+
+USER $UID
 
 CMD ["bash"]

@@ -44,7 +44,7 @@ RUN bash /opt/scripts/install-system-libs-R.sh
 
 
 # Use RStudio's package manager to download packages as binaries
-ENV CRAN="https://packagemanager.posit.co/cran/__linux__/jammy/latest"
+ENV CRAN="https://packagemanager.posit.co/cran/__linux__/noble/latest"
 
 # Install R packages
 RUN R CMD javareconf -e && \
@@ -78,6 +78,7 @@ RUN R CMD javareconf -e && \
     R -e "install.packages('gissb', dependencies=TRUE, repos='${CRAN}')" && \
     R -e "install.packages('igraph', dependencies=TRUE, repos='${CRAN}')" && \
     R -e "install.packages('dggridR', repos='${CRAN}')" && \
+    R -e "install.packages('remotes', repos='${CRAN}')" && \
     R -e "remotes::install_github('statisticsnorway/ssb-pris')" && \
     R -e "remotes::install_github('statisticsnorway/ssb-GaussSuppression')" && \
     R -e "remotes::install_github('statisticsnorway/ssb-fellesr')" && \
