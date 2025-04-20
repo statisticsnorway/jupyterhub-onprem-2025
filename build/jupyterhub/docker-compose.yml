@@ -1,84 +1,35 @@
 # JupyterHub docker-compose configuration file
-version: "2"
+version: '3' # Simplified version
 
 services:
-  hub-db:
-    image: nexus.ssb.no:8445/postgres:9.5
-    container_name: jupyterhub-db
-    restart: always
-    environment:
-      POSTGRES_DB: jupyterhub
-      PGDATA: /var/lib/postgresql/data
-    env_file:
-      - ~/secrets/postgres/postgres.env
-    volumes:
-      - "db:/var/lib/postgresql/data"
-
-  hub:
-    depends_on:
-      - hub-db
-    restart: always
-    image: ${DOCKER_HUB_IMAGE}
+  jupyterhub: # Renamed from 'hub' for clarity
+    build: . # Build the hub image from the current directory
+    image: jupyterhub-local:latest # Give the built image a local name
     container_name: jupyterhub
-    volumes:
-      # Bind Docker socket on the host so we can connect to the daemon from
-      # within the container
-      - "/var/run/docker.sock:/var/run/docker.sock:rw"
-
-      # Bind Docker volume on host for JupyterHub database and cookie secrets
-      - "data:/data"
-
-        # Mounting ssb nfs shares
-      # - "/ssb:/ssb"
-
-        # Mounting SSL_CERT & SSL_KEY
-      # - "~/secrets/ssl:/srv/jupyterhub/secrets"
-
-        # Mounting /var/lib/sss so we can use sssd users from host
-      # - "/var/lib/sss:/var/lib/sss"
-
+    restart: always
     ports:
-      - "443:443"
-    links:
-      - hub-db
+      - "8000:8000" # Expose HTTP port
+    volumes:
+      # Mount docker socket to allow Hub to control Docker
+      - /var/run/docker.sock:/var/run/docker.sock:rw
+      # Persist hub data
+      - jupyterhub-data:/data
     environment:
-      # All containers will join this network
-      DOCKER_NETWORK_NAME: jupyterhub-network
-      # JupyterHub will spawn this Notebook image for users
-      DOCKER_NOTEBOOK_IMAGE: ${DOCKER_NOTEBOOK_IMAGE}
-      # Using this run command (optional)
-      DOCKER_SPAWN_CMD: start-singleuser.sh
-      # Postgres db info
-      POSTGRES_DB: jupyterhub
-      POSTGRES_HOST: hub-db
-      # Should be passed on to jupyterlab instances
-      STATBANK_ENCRYPT_URL: http://statbank-authenticator:8080/encrypt
-      STATBANK_BASE_URL: ${STATBANK_BASE_URL}
-      JUPYTERHUB_HTTP_REFERER: ${JUPYTERHUB_HTTP_REFERER}
-      DAPLA_ENVIRONMENT: ${DAPLA_ENVIRONMENT}
-    env_file:
-      - ~/secrets/postgres/postgres.env
-    command: >
-      jupyterhub -f /srv/jupyterhub/jupyterhub_config.py
-
-  # statbank-authenticator:
-  #   image: ${STATBANK_AUTHENTICATOR_IMAGE}
-  #   container_name: statbank-authenticator
-  #   restart: always
-  #   environment:
-  #     ON_PREM: "True"
-  #   env_file:
-  #     - ~/secrets/statbank-authenticator/statbank.env
+      # Use the playground image we built
+      DOCKER_NOTEBOOK_IMAGE: jupyter-playground:latest
+      # Define the internal network name
+      DOCKER_NETWORK_NAME: jupyterhub_internal_network
+      # Other minimal env vars if needed by the config (adjust as needed)
+      DATA_VOLUME_CONTAINER: /data # For cookie secret path
+    networks:
+      - internal_network
+    # No command needed here if Dockerfile has CMD/ENTRYPOINT
+    # command: jupyterhub -f /srv/jupyterhub/jupyterhub_config.py
 
 volumes:
-  data:
-    external:
-      name: jupyterhub-data
-  db:
-    external:
-      name: jupyterhub-db-data
+  jupyterhub-data: # Simple local volume for data
 
 networks:
-  default:
-    external:
-      name: jupyterhub-network
+  internal_network:
+    name: jupyterhub_internal_network # Explicitly name the network
+    driver: bridge

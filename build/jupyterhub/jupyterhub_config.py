@@ -1,4 +1,6 @@
 import os
+from dockerspawner import DockerSpawner
+from jupyterhub.auth import DummyAuthenticator
 
 # Configuration file for JupyterHub
 c = get_config()
@@ -7,8 +9,45 @@ c = get_config()
 # avoid having to rebuild the JupyterHub container every time we change a
 # configuration parameter.
 
-# Spawn single-user servers as Docker containers
-c.JupyterHub.spawner_class = "dockerspawner.SystemUserSpawner"
+# --- Core Configuration ---
+c.JupyterHub.spawner_class = DockerSpawner
+c.JupyterHub.authenticator_class = DummyAuthenticator
+
+# --- Spawner Configuration ---
+c.DockerSpawner.image = os.environ.get('DOCKER_NOTEBOOK_IMAGE', 'jupyter-playground:latest')
+c.DockerSpawner.network_name = os.environ.get('DOCKER_NETWORK_NAME', 'jupyterhub_internal_network')
+c.DockerSpawner.use_internal_ip = True
+c.DockerSpawner.remove = False # Keep containers for debugging
+
+# Timeout for server startup
+c.DockerSpawner.start_timeout = 300
+
+# --- Hub Configuration ---
+c.JupyterHub.hub_ip = '0.0.0.0' # Listen on all interfaces internally
+c.JupyterHub.hub_port = 8081
+c.JupyterHub.bind_url = 'http://:8000' # Public facing URL
+
+# --- Authenticator Configuration ---
+c.DummyAuthenticator.password = "test" # Set a dummy password
+c.Authenticator.admin_users = {'testuser'}
+
+# --- Persistence --- 
+data_dir = os.environ.get('DATA_VOLUME_CONTAINER', '/data')
+c.JupyterHub.cookie_secret_file = os.path.join(data_dir, 'jupyterhub_cookie_secret')
+c.JupyterHub.db_url = f'sqlite:///{data_dir}/jupyterhub.sqlite'
+
+# --- Services Configuration ---
+c.JupyterHub.services = [
+    {
+        'name': 'cull-idle',
+        'admin': True,
+        'command': ['python3', '-m', 'jupyterhub_idle_culler', '--timeout=3600'],
+    }
+]
+
+# --- Logging ---
+c.JupyterHub.log_level = 'DEBUG'
+c.Spawner.debug = True
 
 # Normalize username, so if user logs in with domain, username@ssb.no
 # then the domain will be cut out once the users notebook server is spawned
@@ -32,7 +71,10 @@ spawn_cmd = os.environ.get("DOCKER_SPAWN_CMD", "start-singleuser.sh")
 
 # 'user: root' must be set so the user container is spawned as root,
 # this allows changes to NB_USER, NB_UID and NB_GID
-c.DockerSpawner.extra_create_kwargs.update({"command": spawn_cmd, "user": "root"})
+c.DockerSpawner.extra_create_kwargs.update({
+    "user": "root", 
+    "command": ["jupyterhub-singleuser", "--allow-root"]
+})
 
 # Connect containers to this Docker network
 network_name = os.environ["DOCKER_NETWORK_NAME"]
@@ -58,7 +100,9 @@ c.SystemUserSpawner.host_homedir_format_string = "/ssb/bruker/{username}"
 c.FileContentsManager.always_delete_dir = True
 
 # Remove containers once they are stopped
-c.DockerSpawner.remove_containers = True
+# c.DockerSpawner.remove_containers = True # RESTORED: Automatically remove stopped/failed containers
+# c.DockerSpawner.remove_containers = True # COMMENTED OUT FOR DEBUGGING AGAIN
+c.DockerSpawner.remove_containers = True # RESTORED AGAIN
 
 # For debugging arguments passed to spawned containers
 c.DockerSpawner.debug = True
@@ -83,24 +127,13 @@ c.JupyterHub.services = [
 ]
 
 # User containers will access hub by container name on the Docker network
-c.JupyterHub.hub_ip = "jupyterhub"
-c.JupyterHub.hub_port = 8080
+# c.JupyterHub.hub_ip = "jupyterhub" # REMOVED for local testing
+# c.JupyterHub.hub_port = 8080       # REMOVED for local testing
 
-# TLS config
-c.JupyterHub.port = 443
-c.JupyterHub.ssl_key = os.environ["SSL_KEY"]
-c.JupyterHub.ssl_cert = os.environ["SSL_CERT"]
-
-# Persist hub data on volume mounted inside container
-data_dir = os.environ.get("DATA_VOLUME_CONTAINER", "/data")
-
-c.JupyterHub.cookie_secret_file = os.path.join(data_dir, "jupyterhub_cookie_secret")
-
-c.JupyterHub.db_url = "postgresql://postgres:{password}@{host}/{db}".format(
-    host=os.environ["POSTGRES_HOST"],
-    password=os.environ["POSTGRES_PASSWORD"],
-    db=os.environ["POSTGRES_DB"],
-)
+# TLS config - REMOVED for local testing
+# c.JupyterHub.port = 443
+# c.JupyterHub.ssl_key = os.environ["SSL_KEY"]
+# c.JupyterHub.ssl_cert = os.environ["SSL_CERT"]
 
 c.DockerSpawner.environment = {
     "STATBANK_ENCRYPT_URL": os.environ.get("STATBANK_ENCRYPT_URL", "UNKNOWN"),

@@ -38,7 +38,7 @@ RUN sed -i "/^PATH=/c\PATH=$PATH" "$R_HOME/etc/Renviron.site"
 
 COPY requirements.txt /tmp/requirements.txt
 
-# Copy Quarto and pipx install scripts
+# Copy scripts
 COPY scripts /opt/scripts/
 RUN chmod +x -R /opt/scripts/
 RUN chown -R ${USERNAME}:${GROUPNAME} /opt/scripts/ 
@@ -59,8 +59,8 @@ RUN /opt/scripts/install-texlive-packages.sh
 # Install Python packages
 RUN /opt/scripts/install-jupyterlab.sh && \
     # Install JupyterLab extensions
+    python3 -m pip install 'numpy<1.24' && \
     python3 -m pip install --upgrade pip && \
-    python3 -m pip install --upgrade jupyterhub jupyterlab-git==0.44.0 && \
     python3 -m pip install --upgrade nbdime==3.2.1 && \
     echo "Installing Dapla tools.txt" && \
     python3 -m pip install --no-cache-dir -r /tmp/requirements.txt && \
@@ -103,6 +103,22 @@ RUN pipx install nox && \
     pipx inject poetry poetry-plugin-export && \
     pipx inject poetry poetry-plugin-shell
 
+# Core JupyterLab extensions - compatible with JupyterLab 4.x
+RUN python3 -m pip install --no-cache-dir --force-reinstall \
+    jupyterlab-git==0.44.0 \
+    nbdime==3.2.1 \
+    nbstripout \
+    papermill \
+    ipywidgets>=8.0.0 \
+    jupyter-server-proxy 
+
+# Ensure JupyterLab 4.x using the provided script
+RUN /opt/scripts/install-jupyterlab.sh && \
+    jupyter labextension disable @jupyterlab/docmanager-extension:download && \
+    jupyter labextension disable @jupyterlab/filebrowser-extension:download && \
+    jupyter labextension uninstall @plotly/dash-jupyterlab
+RUN jupyter lab --version
+
 # Set template version for ssb-project-cli
 ENV STAT_TEMPLATE_DEFAULT_REFERENCE="1.1.9"
 
@@ -123,8 +139,8 @@ RUN pip config set global.index https://pypi.org/pypi --global && \
 ENV https_proxy=http://proxy.ssb.no:3128
 ENV no_proxy=nexus.ssb.no,git-adm.ssb.no,i.test.ssb.no,i.ssb.no,i.qa.ssb.no,data.ssb.no,github.com,api.github.com,codeload.github.com
 
-# Pull and update ca-certificates
-RUN mkdir "/usr/local/bin/start-notebook.d" && \
+# Pull and update ca-certificates - use -p to avoid errors if directory exists
+RUN mkdir -p "/usr/local/bin/start-notebook.d" && \
     echo "curl https://nexus.ssb.no/repository/certificate_repo/ssb/cert_Decrypt-CA.crt --output /usr/local/share/ca-certificates/cert_Decrypt-CA.crt" > /usr/local/bin/start-notebook.d/update-certificate.sh && \
     echo "update-ca-certificates" >> /usr/local/bin/start-notebook.d/update-certificate.sh && \
     chmod +x /usr/local/bin/start-notebook.d/update-certificate.sh
@@ -133,17 +149,16 @@ RUN mkdir "/usr/local/bin/start-notebook.d" && \
 ENV DAPLA_SERVICE=JUPYTERLAB
 ENV DAPLA_REGION=ON_PREM
 
-# Adding pythonForSsb in PYTHONPATH
-ENV PYTHONPATH=$PYTHONPATH:/ssb/bruker/felles/pythonForSsb
-
 # Set FELLES environment variable
 ENV FELLES=/ssb/bruker/felles
 ENV ARROW_THIRDPARTY_DEPENDENCY_DIR=$FELLES/R_pakker/arrow
 ENV ARROW_GCS=OFF
 ENV ARROW_S3=OFF
 
+# Fix PYTHONPATH environment variable
+ENV PYTHONPATH=/ssb/bruker/felles/pythonForSsb
 
-# Copy the kernels. (pre-defined kernels are found at /opt/conda/share/jupyter/kernels)
+# Copy the kernels
 COPY kernels/ir /opt/conda/share/jupyter/kernels/ir/
 COPY kernels/python3 /opt/conda/share/jupyter/kernels/python3/
 
@@ -166,6 +181,8 @@ RUN chmod u-w  /opt/conda/share/jupyter/labextensions
 RUN chmod u-w  /opt/conda/share/jupyter/nbextensions
 RUN chmod u-w  /opt/conda/share/jupyter/lab/extensions
 
-USER $UID
+# Expose port
+EXPOSE 8888
 
-CMD ["bash"]
+# Start the single-user server process expected by JupyterHub
+CMD ["jupyterhub-singleuser"]

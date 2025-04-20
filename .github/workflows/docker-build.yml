@@ -31,45 +31,54 @@ jobs:
       - name: Build and push base image
         uses: docker/build-push-action@v4
         with:
-          context: ./base
-          file: ./base/Dockerfile
-          push: true
+          context: ./build/base
+          file: ./build/base/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:base
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:base
           cache-to: type=inline
 
-      - name: Build and push rstudio-minimal image
+      - name: Build and push r-minimal image
         uses: docker/build-push-action@v4
         with:
-          context: ./rstudio-minimal
-          file: ./rstudio-minimal/Dockerfile
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:rstudio-minimal
+          context: ./build/r-minimal
+          file: ./build/r-minimal/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:r-minimal
           cache-from: |
             type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:base
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:rstudio-minimal
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:r-minimal
           cache-to: type=inline
 
-      - name: Build and push python image
+      - name: Build and push jupyter-playground image
         uses: docker/build-push-action@v4
         with:
-          context: ./python
-          file: ./python/Dockerfile
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:python
-          cache-from: |
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:rstudio-minimal
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:python
-          cache-to: type=inline
-
-      - name: Build and push jupyterlab image
-        uses: docker/build-push-action@v4
-        with:
-          context: ./jupyterlab
-          file: ./jupyterlab/Dockerfile
-          push: true
+          context: ./build/jupyter-playground
+          file: ./build/jupyter-playground/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           cache-from: |
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:python
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:base
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:r-minimal
             type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-          cache-to: type=inline 
+          cache-to: type=inline
+
+      - name: Build and push jupyterhub image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./build/jupyterhub
+          file: ./build/jupyterhub/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:jupyterhub
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:jupyterhub
+          cache-to: type=inline
+
+      # --- Deployment steps would go here based on event type (push main, release) ---
+      # Example placeholder:
+      # - name: Deploy to Staging
+      #   if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      #   run: echo "Deploying staging..." # Replace with actual deployment commands
+      #
+      # - name: Deploy to Production
+      #   if: github.event_name == 'release'
+      #   run: echo "Deploying production for release ${{ github.event.release.tag_name }}..." # Replace with actual deployment commands 

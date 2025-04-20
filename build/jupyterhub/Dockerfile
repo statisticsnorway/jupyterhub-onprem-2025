@@ -1,6 +1,6 @@
 # Copyright (c) Jupyter Development Team.
 # Distributed under the terms of the Modified BSD License.
-FROM jupyterhub/jupyterhub:3
+FROM quay.io/jupyterhub/jupyterhub:4
 
 # Update distro to apply security fixes
 RUN apt update && \
