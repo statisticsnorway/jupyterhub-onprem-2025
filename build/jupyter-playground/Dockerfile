@@ -61,7 +61,9 @@ RUN /opt/scripts/install-jupyterlab.sh && \
     # Install JupyterLab extensions
     python3 -m pip install 'numpy<1.24' && \
     python3 -m pip install --upgrade pip && \
-    python3 -m pip install --upgrade nbdime==3.2.1 && \
+    python3 -m pip install jupyterlab-git && \
+    python3 -m pip install nbdime && \
+    python3 -m pip install jupyterhub &&\
     echo "Installing Dapla tools.txt" && \
     python3 -m pip install --no-cache-dir -r /tmp/requirements.txt && \
     python3 -m pip install nbstripout && \
@@ -104,19 +106,21 @@ RUN pipx install nox && \
     pipx inject poetry poetry-plugin-shell
 
 # Core JupyterLab extensions - compatible with JupyterLab 4.x
-RUN python3 -m pip install --no-cache-dir --force-reinstall \
-    jupyterlab-git==0.44.0 \
-    nbdime==3.2.1 \
-    nbstripout \
-    papermill \
-    ipywidgets>=8.0.0 \
-    jupyter-server-proxy 
+# RUN python3 -m pip install --no-cache-dir --force-reinstall \
+#                            jupyterhub \
+#                            jupyterlab-git==0.44.0 \
+#                            nbdime==3.2.1 \
+#                            nbstripout \
+#                            papermill \
+#                            ipywidgets>=8.0.0 \
+#                            jupyter-server-proxy
 
 # Ensure JupyterLab 4.x using the provided script
-RUN /opt/scripts/install-jupyterlab.sh && \
-    jupyter labextension disable @jupyterlab/docmanager-extension:download && \
+RUN jupyter labextension disable @jupyterlab/docmanager-extension:download && \
     jupyter labextension disable @jupyterlab/filebrowser-extension:download && \
-    jupyter labextension uninstall @plotly/dash-jupyterlab
+    jupyter labextension uninstall @plotly/dash-jupyterlab && \
+    jupyter labextension disable @jupyterlab/extensionmanager-extension && \
+    jupyter labextension disable "@jupyterlab/apputils-extension:announcements"
 RUN jupyter lab --version
 
 # Set template version for ssb-project-cli
