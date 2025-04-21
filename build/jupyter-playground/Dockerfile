@@ -56,10 +56,14 @@ RUN /opt/scripts/install-texlive-packages.sh
 # RUN mkdir -p /etc/jupyter
 # COPY jupyter_lab_config.py /etc/jupyter
 
+# Install Node.js (required for JupyterLab 4.x extensions)
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs && \
+    node --version && npm --version
+
 # Install Python packages
 RUN /opt/scripts/install-jupyterlab.sh && \
     # Install JupyterLab extensions
-    python3 -m pip install 'numpy<1.24' && \
     python3 -m pip install --upgrade pip && \
     python3 -m pip install jupyterlab-git && \
     python3 -m pip install nbdime && \
@@ -67,11 +71,13 @@ RUN /opt/scripts/install-jupyterlab.sh && \
     echo "Installing Dapla tools.txt" && \
     python3 -m pip install --no-cache-dir -r /tmp/requirements.txt && \
     python3 -m pip install nbstripout && \
+    python3 -m pip install jupyterlab-quarto && \
+    python3 -m pip install jupytext && \
     python3 -m pip install papermill && \
     python3 -m pip install ipywidgets && \
     python3 -m pip install jupyter-server-proxy && \
-    python3 -m pip install pyviz_comms==2.3.0 && \
-    python3 -m pip install panel==0.13.1rc2 && \
+    python3 -m pip install pyviz_comms && \
+    python3 -m pip install panel && \
     python3 -m pip install plotly && \
     python3 -m pip install geopandas && \
     python3 -m pip install ipyleaflet && \
@@ -81,10 +87,9 @@ RUN /opt/scripts/install-jupyterlab.sh && \
     python3 -m pip install python-language-server[all] && \
     python3 -m pip install ipysheet && \
     python3 -m pip install fuzzywuzzy[speedup] && \
-    python3 -m pip install jupyterlab-system-monitor && \
-    python3 -m pip install jupytext==1.15.2 && \
-    python3 -m pip uninstall -y ipyparallel && \
-    python3 -m pip uninstall -y sympy mpmath && \
+    python3 -m pip install jupyter-resource-usage && \
+    python3 -m pip install ipyparallel && \
+    python3 -m pip install sympy mpmath && \
     python3 -m pip install poetry && \
     python3 -m pip install sphinx sphinx-autodoc-defaultargs sphinx-autodoc-typehints sphinx-rtd-theme && \
     python3 -m pip install pytest pytest_tornasync pytest-cov pytest-mock pre-commit-hooks jupyterlab-code-formatter black[jupyter] isort && \
@@ -94,6 +99,10 @@ RUN /opt/scripts/install-jupyterlab.sh && \
     python3 -m pip install saspy && \
     python3 -m pip install ipydatagrid && \
     python3 -m pip install pipx && \
+    # If R is installed, make its kernel available in Jupyter
+    if command -v R; then \
+    R -e "install.packages('IRkernel'); IRkernel::installspec()"; \
+    fi && \ 
     python3 -m pip cache purge && \
     rm /tmp/requirements.txt
 
@@ -114,13 +123,16 @@ RUN pipx install nox && \
 #                            papermill \
 #                            ipywidgets>=8.0.0 \
 #                            jupyter-server-proxy
+RUN pip install dash
 
+RUN jupyter labextension list
 # Ensure JupyterLab 4.x using the provided script
 RUN jupyter labextension disable @jupyterlab/docmanager-extension:download && \
     jupyter labextension disable @jupyterlab/filebrowser-extension:download && \
-    jupyter labextension uninstall @plotly/dash-jupyterlab && \
     jupyter labextension disable @jupyterlab/extensionmanager-extension && \
-    jupyter labextension disable "@jupyterlab/apputils-extension:announcements"
+    jupyter labextension disable "@jupyterlab/apputils-extension:announcements"  && \
+    jupyter labextension disable jupyterlab-dash  && \
+    jupyter lab build
 RUN jupyter lab --version
 
 # Set template version for ssb-project-cli
@@ -142,6 +154,11 @@ RUN pip config set global.index https://pypi.org/pypi --global && \
 # Use proxy for https connections
 ENV https_proxy=http://proxy.ssb.no:3128
 ENV no_proxy=nexus.ssb.no,git-adm.ssb.no,i.test.ssb.no,i.ssb.no,i.qa.ssb.no,data.ssb.no,github.com,api.github.com,codeload.github.com
+
+# Configure npm to use proxy if needed
+# ENV npm_config_proxy=http://proxy.ssb.no:3128
+# ENV npm_config_https_proxy=http://proxy.ssb.no:3128
+# ENV npm_config_registry=https://registry.npmjs.org/
 
 # Pull and update ca-certificates - use -p to avoid errors if directory exists
 RUN mkdir -p "/usr/local/bin/start-notebook.d" && \
