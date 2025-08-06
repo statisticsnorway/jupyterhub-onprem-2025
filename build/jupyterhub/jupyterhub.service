@@ -7,7 +7,7 @@ After=docker.service
 Type=oneshot
 RemainAfterExit=true
 User=jupyterhub
-WorkingDirectory=/home/jupyterhub/jupyterhub-onprem/docker/jupyterhub
+WorkingDirectory=/home/jupyterhub/jupyterhub-onprem/build/jupyterhub
 ExecStart=/bin/docker compose -f docker-compose.yml --env-file /home/jupyterhub/secrets/compose/.env up -d
 ExecStop=/bin/docker compose -f docker-compose.yml stop
 
