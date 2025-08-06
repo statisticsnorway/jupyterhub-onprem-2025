@@ -1,5 +1,5 @@
 ARG BASE_IMAGE=ubuntu:24.04
-FROM $BASE_IMAGE
+FROM ${BASE_IMAGE}
 
 LABEL maintainer="Statistics Norway"
 

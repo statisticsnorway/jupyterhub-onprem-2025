@@ -1,0 +1,330 @@
+name: Build and Push Docker Images
+
+permissions:
+  contents: read
+  packages: write
+
+on:
+  release:
+    types: [published]
+  push:
+    branches: [ main ]
+    paths:
+      - 'docker/**'
+      - '.github/workflows/docker-**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'docker/**'
+      - '.github/workflows/docker-**'
+  workflow_dispatch:
+
+env:
+  REGISTRY: europe-north1-docker.pkg.dev/${{ secrets.GAR_PROJECT_ID }}
+  TEAM_NAME: itinfra-bakkesyst
+  TAG: ${{ github.ref_name }}-${{ github.sha }}
+
+jobs:
+  # Base image - foundation for all other images
+  base:
+    name: "Build Base Image"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2.1.2
+        with:
+          workload_identity_provider: "projects/${{ secrets.GAR_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions/providers/gh-actions"
+          service_account: "gh-actions-${{ env.TEAM_NAME}}@${{ secrets.GAR_PROJECT_ID }}.iam.gserviceaccount.com"
+          token_format: access_token
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Artifact Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: "oauth2accesstoken"
+          password: "${{ steps.auth.outputs.access_token }}"
+
+      - name: Extract build metadata for Docker
+        id: build_metadata
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.TEAM_NAME }}-docker/jupyter-onprem-2025/base
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ env.TAG }},enable=${{ github.event_name == 'release' }}
+
+      - name: Build and push base image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: docker/base
+          provenance: false
+          file: docker/base/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.build_metadata.outputs.tags }}
+          labels: ${{ steps.build_metadata.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          load: true
+          build-args: |
+            BASE_IMAGE=ubuntu:24.04
+
+      - name: Smoke test base image
+        run: |
+          # Use the first tag for testing
+          TAG=$(echo "${{ steps.build_metadata.outputs.tags }}" | head -n1)
+          docker run --rm $TAG bash -c "echo 'Base image smoke test passed'"
+
+  # R Minimal - builds on base, adds R environment
+  r-minimal:
+    name: "Build R Minimal Image"
+    needs: [base]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2.1.2
+        with:
+          workload_identity_provider: "projects/${{ secrets.GAR_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions/providers/gh-actions"
+          service_account: "gh-actions-${{ env.TEAM_NAME}}@${{ secrets.GAR_PROJECT_ID }}.iam.gserviceaccount.com"
+          token_format: access_token
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Artifact Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: "oauth2accesstoken"
+          password: "${{ steps.auth.outputs.access_token }}"
+
+      - name: Extract build metadata for Docker
+        id: build_metadata
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.TEAM_NAME }}-docker/jupyter-onprem-2025/r-minimal
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ env.TAG }},enable=${{ github.event_name == 'release' }}
+
+      - name: Build and push r-minimal image
+        uses: docker/build-push-action@v5
+        with:
+          context: docker/r-minimal
+          provenance: false
+          file: docker/r-minimal/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.build_metadata.outputs.tags }}
+          labels: ${{ steps.build_metadata.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          load: true
+          build-args: |
+            BASE_IMAGE=${{ env.REGISTRY }}/${{ env.TEAM_NAME }}-docker/jupyter-onprem-2025/base:latest
+
+      - name: Smoke test r-minimal image
+        run: |
+          TAG=$(echo "${{ steps.build_metadata.outputs.tags }}" | head -n1)
+          docker run --rm $TAG R --version
+
+  # Oracle - builds on r-minimal, adds Oracle client
+  oracle:
+    name: "Build Oracle Image"
+    needs: [r-minimal]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2.1.2
+        with:
+          workload_identity_provider: "projects/${{ secrets.GAR_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions/providers/gh-actions"
+          service_account: "gh-actions-${{ env.TEAM_NAME}}@${{ secrets.GAR_PROJECT_ID }}.iam.gserviceaccount.com"
+          token_format: access_token
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Artifact Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: "oauth2accesstoken"
+          password: "${{ steps.auth.outputs.access_token }}"
+
+      - name: Extract build metadata for Docker
+        id: build_metadata
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.TEAM_NAME }}-docker/jupyter-onprem-2025/oracle
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ env.TAG }},enable=${{ github.event_name == 'release' }}
+
+      - name: Build and push oracle image
+        uses: docker/build-push-action@v5
+        with:
+          context: docker/oracle
+          provenance: false
+          file: docker/oracle/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.build_metadata.outputs.tags }}
+          labels: ${{ steps.build_metadata.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          load: true
+          build-args: |
+            BASE_IMAGE=${{ env.REGISTRY }}/${{ env.TEAM_NAME }}-docker/jupyter-onprem-2025/r-minimal:latest
+
+      - name: Smoke test oracle image
+        run: |
+          TAG=$(echo "${{ steps.build_metadata.outputs.tags }}" | head -n1)
+          docker run --rm $TAG bash -c "sqlplus -v && echo 'Oracle client working'"
+
+  # Jupyter Playground - builds on oracle, adds full data science stack
+  jupyter-playground:
+    name: "Build Jupyter Playground Image"
+    needs: [oracle]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2.1.2
+        with:
+          workload_identity_provider: "projects/${{ secrets.GAR_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions/providers/gh-actions"
+          service_account: "gh-actions-${{ env.TEAM_NAME}}@${{ secrets.GAR_PROJECT_ID }}.iam.gserviceaccount.com"
+          token_format: access_token
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Artifact Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: "oauth2accesstoken"
+          password: "${{ steps.auth.outputs.access_token }}"
+
+      - name: Extract build metadata for Docker
+        id: build_metadata
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.TEAM_NAME }}-docker/jupyter-onprem-2025/jupyter-playground
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ env.TAG }},enable=${{ github.event_name == 'release' }}
+
+      - name: Build and push jupyter-playground image
+        uses: docker/build-push-action@v5
+        with:
+          context: docker/jupyter-playground
+          provenance: false
+          file: docker/jupyter-playground/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.build_metadata.outputs.tags }}
+          labels: ${{ steps.build_metadata.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          load: true
+          build-args: |
+            BASE_IMAGE=${{ env.REGISTRY }}/${{ env.TEAM_NAME }}-docker/jupyter-onprem-2025/oracle:latest
+
+      - name: Smoke test jupyter-playground image
+        run: |
+          TAG=$(echo "${{ steps.build_metadata.outputs.tags }}" | head -n1)
+          docker run --rm $TAG bash -c "jupyter --version && python --version"
+
+  # JupyterHub - independent build from quay.io
+  jupyterhub:
+    name: "Build JupyterHub Image"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2.1.2
+        with:
+          workload_identity_provider: "projects/${{ secrets.GAR_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions/providers/gh-actions"
+          service_account: "gh-actions-${{ env.TEAM_NAME}}@artifact-registry-5n.iam.gserviceaccount.com"
+          token_format: access_token
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Artifact Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: "oauth2accesstoken"
+          password: "${{ steps.auth.outputs.access_token }}"
+
+      - name: Extract build metadata for Docker
+        id: build_metadata
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.TEAM_NAME }}-docker/jupyter-onprem-2025/jupyterhub
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ env.TAG }},enable=${{ github.event_name == 'release' }}
+
+      - name: Build and push jupyterhub image
+        uses: docker/build-push-action@v5
+        with:
+          context: docker/jupyterhub
+          provenance: false
+          file: docker/jupyterhub/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.build_metadata.outputs.tags }}
+          labels: ${{ steps.build_metadata.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          load: true
+          build-args: |
+            BASE_IMAGE=quay.io/jupyterhub/jupyterhub:4
+
+      - name: Smoke test jupyterhub image
+        run: |
+          TAG=$(echo "${{ steps.build_metadata.outputs.tags }}" | head -n1)
+          docker run --rm $TAG jupyterhub --version
+
+  # Summary job
+  build-summary:
+    name: "Build Summary"
+    runs-on: ubuntu-latest
+    needs: [base, r-minimal, oracle, jupyter-playground, jupyterhub]
+    if: always()
+    steps:
+      - name: Generate Build Summary
+        run: |
+          echo "## 🚀 Docker Build Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "**Registry:** ${{ env.REGISTRY }}/${{ env.TEAM_NAME }}-docker" >> $GITHUB_STEP_SUMMARY
+          echo "**Tag:** ${{ env.TAG }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Trigger:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY

@@ -1,4 +1,5 @@
-FROM r-minimal:latest
+ARG BASE_IMAGE=europe-north1-docker.pkg.dev/artifact-registry-5n/itinfra-bakkesyst-docker/jupyter-onprem-2025/r-minimal:latest
+FROM ${BASE_IMAGE}
 
 USER root
 

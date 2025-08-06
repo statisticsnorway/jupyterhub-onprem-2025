@@ -1,4 +1,5 @@
-FROM oracle:latest
+ARG BASE_IMAGE=europe-north1-docker.pkg.dev/artifact-registry-5n/itinfra-bakkesyst-docker/jupyter-onprem-2025/oracle:latest
+FROM ${BASE_IMAGE}
 
 LABEL maintainer="Statistics Norway"
 
