@@ -3,7 +3,8 @@ version: '3' # Simplified version
 
 services:
   jupyterhub: # Renamed from 'hub' for clarity
-    image: ${DOCKER_HUB_IMAGE}
+    image: jupyterhub-onprem-hub
+    # image: ${DOCKER_HUB_IMAGE}
     container_name: jupyterhub
     restart: always
     ports:
@@ -27,6 +28,7 @@ services:
     environment:
       # Use the playground image we built
       DOCKER_NOTEBOOK_IMAGE: ${DOCKER_NOTEBOOK_IMAGE}
+      # DOCKER_NOTEBOOK_IMAGE: jupyterhub-onprem
       # Define the internal network name
       DOCKER_NETWORK_NAME: jupyterhub-network
       # Using this run command (optional)
