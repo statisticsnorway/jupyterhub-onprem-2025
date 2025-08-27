@@ -8,7 +8,7 @@ Type=oneshot
 RemainAfterExit=true
 User=jupyterhub
 WorkingDirectory=/home/jupyterhub/jupyterhub-onprem/docker/jupyterhub
-ExecStart=/bin/docker compose -f docker-compose.yml --env-file /home/jupyterhub/secrets/compose/.env up --pull always -d
+ExecStart=/bin/docker compose -f docker-compose.yml up --pull always -d
 ExecStop=/bin/docker compose -f docker-compose.yml stop
 
 [Install]

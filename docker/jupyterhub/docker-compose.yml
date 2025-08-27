@@ -3,8 +3,8 @@ version: '3' # Simplified version
 
 services:
   jupyterhub: # Renamed from 'hub' for clarity
-    image: jupyterhub-onprem-hub
-    # image: ${DOCKER_HUB_IMAGE}
+    # image: jupyterhub-onprem-hub
+    image: ${DOCKER_HUB_IMAGE}
     container_name: jupyterhub
     restart: always
     ports:
