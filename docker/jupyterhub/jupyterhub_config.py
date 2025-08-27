@@ -1,5 +1,4 @@
 import os
-from dockerspawner import DockerSpawner
 
 # Configuration file for JupyterHub
 c = get_config()
@@ -9,7 +8,7 @@ c = get_config()
 # configuration parameter.
 
 # Spawn single-user servers as Docker containers
-c.JupyterHub.spawner_class = DockerSpawner
+c.JupyterHub.spawner_class = "dockerspawner.SystemUserSpawner"
 
 # Normalize username, so if user logs in with domain, username@ssb.no
 # then the domain will be cut out once the users notebook server is spawned
