@@ -9,7 +9,7 @@ RUN apt update && \
     apt-get -y upgrade && \
     apt-get -y dist-upgrade && \
     apt-get install -y vim && \
-    apt-get install -y libpam-sss libnss-sss sssd-common pamtester && \
+    apt-get install -y libpam-sss libnss-sss sssd-common pamtester strace && \
     # # Installing sssd-tools (required for authentication)
     apt-get -y install sssd-tools
 

@@ -23,7 +23,9 @@ services:
       - "${HOME}/secrets/ssl:/srv/jupyterhub/secrets"
 
         # Mounting /var/lib/sss so we can use sssd users from host
-      - "/var/lib/sss:/var/lib/sss"
+      - "/var/lib/sss:/var/lib/sss:rw,z"
+
+      - "/run/sssd:/run/sssd:rw,z"  
 
     environment:
       # Use the playground image we built

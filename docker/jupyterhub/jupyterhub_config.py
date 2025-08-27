@@ -10,9 +10,14 @@ c = get_config()
 # Spawn single-user servers as Docker containers
 c.JupyterHub.spawner_class = "dockerspawner.SystemUserSpawner"
 
+c.PAMAuthenticator.service = "login"
+
 # Normalize username, so if user logs in with domain, username@ssb.no
 # then the domain will be cut out once the users notebook server is spawned
 c.PAMAuthenticator.pam_normalize_username = True
+c.PAMAuthenticator.open_sessions = False
+
+c.Authenticator.allow_all = True 
 
 # Add admin users
 c.PAMAuthenticator.admin_groups = {"RBAG_jupyterhub_admins@ssb.no"}
