@@ -279,7 +279,7 @@ USER root
      && rm -rf /var/lib/apt/lists/*
 
 ARG CONDA_DIR=/opt/conda
-
+ENV CONDA_DIR=${CONDA_DIR}
 # Install miniconda
 RUN curl -L https://repo.anaconda.com/miniconda/Miniconda3-py${PYTHON_VERSION}_24.4.0-0-Linux-x86_64.sh -o conda-python.sh && \
     chmod +x conda-python.sh && \
@@ -397,28 +397,6 @@ RUN jupyter lab --version
 # Set template version for ssb-project-cli
 ENV STAT_TEMPLATE_DEFAULT_REFERENCE="1.1.9"
 
-# Configure Python virtual environments
-ENV PIP_REQUIRE_VIRTUALENV=true
-ENV POETRY_VIRTUALENVS_IN_PROJECT=true
-
-# Setting up environment variables for pip and pipenv
-ENV PIP_INDEX=https://pypi.org/pypi
-ENV PIP_INDEX_URL=https://pypi.org/simple
-ENV PIPENV_PYPI_MIRROR=$PIP_INDEX_URL
-ENV PIP_TRUSTED_HOST=pypi.org
-RUN pip config set global.index https://pypi.org/pypi --global && \
-    pip config set global.index-url https://pypi.org/simple --global && \
-    pip config set global.trusted-host pypi.org --global
-
-# Use proxy for https connections
-ENV https_proxy=http://proxy.ssb.no:3128
-ENV no_proxy=nexus.ssb.no,git-adm.ssb.no,i.test.ssb.no,i.ssb.no,i.qa.ssb.no,data.ssb.no,github.com,api.github.com,codeload.github.com
-
-# Configure npm to use proxy if needed
-# ENV npm_config_proxy=http://proxy.ssb.no:3128
-# ENV npm_config_https_proxy=http://proxy.ssb.no:3128
-# ENV npm_config_registry=https://registry.npmjs.org/
-
 # Pull and update ca-certificates - use -p to avoid errors if directory exists
 RUN mkdir -p "/usr/local/bin/start-notebook.d" && \
     echo "curl https://nexus.ssb.no/repository/certificate_repo/ssb/cert_Decrypt-CA.crt --output /usr/local/share/ca-certificates/cert_Decrypt-CA.crt" > /usr/local/bin/start-notebook.d/update-certificate.sh && \
@@ -461,15 +439,31 @@ RUN chmod u-w  /opt/conda/share/jupyter/labextensions
 RUN chmod u-w  /opt/conda/share/jupyter/nbextensions
 RUN chmod u-w  /opt/conda/share/jupyter/lab/extensions
 
-# # Set up proxy configuration
-# ENV https_proxy=http://proxy.ssb.no:3128
-# ENV no_proxy=nexus.ssb.no,git-adm.ssb.no,i.test.ssb.no,i.ssb.no,i.qa.ssb.no,data.ssb.no,github.com,api.github.com,codeload.github.com
+# Set up proxy configuration
+ENV https_proxy=http://proxy.ssb.no:3128
+ENV no_proxy=nexus.ssb.no,git-adm.ssb.no,i.test.ssb.no,i.ssb.no,i.qa.ssb.no,data.ssb.no,github.com,api.github.com,codeload.github.com
 
-# # Set up certificate update script
-# RUN mkdir "/usr/local/bin/start-notebook.d" && \
-#     echo "curl https://nexus.ssb.no/repository/certificate_repo/ssb/cert_Decrypt-CA.crt --output /usr/local/share/ca-certificates/cert_Decrypt-CA.crt" > /usr/local/bin/start-notebook.d/update-certificate.sh && \
-#     echo "update-ca-certificates" >> /usr/local/bin/start-notebook.d/update-certificate.sh && \
-#     chmod +x /usr/local/bin/start-notebook.d/update-certificate.sh
+# Configure Python virtual environments
+ENV PIP_REQUIRE_VIRTUALENV=true
+ENV POETRY_VIRTUALENVS_IN_PROJECT=true
+
+# Setting up environment variables for pip and pipenv
+ENV PIP_INDEX=https://pypi.org/pypi
+ENV PIP_INDEX_URL=https://pypi.org/simple
+ENV PIPENV_PYPI_MIRROR=$PIP_INDEX_URL
+ENV PIP_TRUSTED_HOST=pypi.org
+RUN pip config set global.index https://pypi.org/pypi --global && \
+    pip config set global.index-url https://pypi.org/simple --global && \
+    pip config set global.trusted-host pypi.org --global
+
+# Use proxy for https connections
+ENV https_proxy=http://proxy.ssb.no:3128
+ENV no_proxy=nexus.ssb.no,git-adm.ssb.no,i.test.ssb.no,i.ssb.no,i.qa.ssb.no,data.ssb.no,github.com,api.github.com,codeload.github.com
+
+# Configure npm to use proxy if needed
+ENV npm_config_proxy=http://proxy.ssb.no:3128
+ENV npm_config_https_proxy=http://proxy.ssb.no:3128
+ENV npm_config_registry=https://registry.npmjs.org/
 
 # Expose port
 EXPOSE 8888
