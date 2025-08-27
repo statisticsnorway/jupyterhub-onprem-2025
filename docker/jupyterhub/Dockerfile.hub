@@ -1,6 +1,6 @@
 # Copyright (c) Jupyter Development Team.
 # Distributed under the terms of the Modified BSD License.
-FROM quay.io/jupyterhub/jupyterhub:4
+FROM quay.io/jupyterhub/jupyterhub:5
 
 # Update distro to apply security fixes
 RUN apt update && \
@@ -19,5 +19,22 @@ RUN python3 -m pip install dockerspawner>=12.1.0 && \
 # copy jupyterhub_config.py to container
 COPY jupyterhub_config.py /srv/jupyterhub
 
+# Copy and run database upgrade script during build
+COPY upgrade-db.sh /tmp/upgrade-db.sh
+RUN chmod +x /tmp/upgrade-db.sh
+
+# Create data directory and run database upgrade if database exists
+RUN mkdir -p /data && \
+    # The upgrade will be handled at runtime since database may not exist during build
+    echo "Database upgrade will be handled at container startup"
+
+# SSL environment variables
 ENV SSL_CERT=/srv/jupyterhub/secrets/certificates.pem
 ENV SSL_KEY=/srv/jupyterhub/secrets/starssb.key
+
+# Copy startup script that handles database upgrades
+COPY start-jupyterhub.sh /usr/local/bin/start-jupyterhub.sh
+RUN chmod +x /usr/local/bin/start-jupyterhub.sh
+
+# Use our startup script that handles database upgrades
+CMD ["/usr/local/bin/start-jupyterhub.sh"]

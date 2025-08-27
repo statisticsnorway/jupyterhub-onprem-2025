@@ -1,0 +1,60 @@
+# JupyterHub docker-compose configuration file
+version: '3' # Simplified version
+
+services:
+  jupyterhub: # Renamed from 'hub' for clarity
+    image: jupyterhub-onprem-hub
+    # image: ${DOCKER_HUB_IMAGE}
+    container_name: jupyterhub
+    restart: always
+    ports:
+      - "443:443" # Expose HTTPS port
+    volumes:
+      # Mount docker socket to allow Hub to control Docker
+      - /var/run/docker.sock:/var/run/docker.sock:rw
+      
+      # Persist hub data
+      - jupyterhub-data:/data
+
+      # Mounting ssb nfs shares
+      - "/ssb:/ssb"
+
+      # Mounting SSL_CERT & SSL_KEY
+      - "${HOME}/secrets/ssl:/srv/jupyterhub/secrets"
+
+        # Mounting /var/lib/sss so we can use sssd users from host
+      - "/var/lib/sss:/var/lib/sss"
+
+    environment:
+      # Use the playground image we built
+      DOCKER_NOTEBOOK_IMAGE: ${DOCKER_NOTEBOOK_IMAGE}
+      # DOCKER_NOTEBOOK_IMAGE: jupyterhub-onprem
+      # Define the internal network name
+      DOCKER_NETWORK_NAME: jupyterhub-network
+      # Using this run command (optional)
+      DOCKER_SPAWN_CMD: start-singleuser.sh
+      # Other minimal env vars if needed by the config (adjust as needed)
+      DATA_VOLUME_CONTAINER: /data # For cookie secret path
+      # Should be passed on to jupyterlab instances
+      STATBANK_ENCRYPT_URL: http://statbank-authenticator:8080/encrypt
+      STATBANK_BASE_URL: ${STATBANK_BASE_URL}
+      JUPYTERHUB_HTTP_REFERER: ${JUPYTERHUB_HTTP_REFERER}
+      DAPLA_ENVIRONMENT: ${DAPLA_ENVIRONMENT}
+  
+    # No command needed here if Dockerfile has CMD/ENTRYPOINT
+    # command: jupyterhub -f /srv/jupyterhub/jupyterhub_config.py
+  statbank-authenticator:
+    image: ${STATBANK_AUTHENTICATOR_IMAGE}
+    container_name: statbank-authenticator
+    restart: always
+    environment:
+      ON_PREM: "True"
+    env_file:
+      - ${HOME}/secrets/statbank-authenticator/statbank.env
+
+volumes:
+  jupyterhub-data: # Simple local volume for data
+
+networks:
+  default:
+    name: jupyterhub-network
