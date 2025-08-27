@@ -8,6 +8,7 @@ RUN apt update && \
     apt-get -y update && \
     apt-get -y upgrade && \
     apt-get -y dist-upgrade && \
+    apt-get -y vim && \
     # # Installing sssd-tools (required for authentication)
     apt-get -y install sssd-tools
 
