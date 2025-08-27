@@ -27,6 +27,8 @@ services:
 
       - "/run/sssd:/run/sssd:rw,z"  
 
+      - "/home/jupyterhub/.docker:/root/.docker:ro"
+
     environment:
       # Use the playground image we built
       DOCKER_NOTEBOOK_IMAGE: ${DOCKER_NOTEBOOK_IMAGE}

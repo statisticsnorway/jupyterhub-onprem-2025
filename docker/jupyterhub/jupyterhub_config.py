@@ -26,7 +26,7 @@ c.PAMAuthenticator.admin_groups = {"RBAG_jupyterhub_admins@ssb.no"}
 c.Authenticator.delete_invalid_users = True
 
 # Spawn containers from this image
-c.DockerSpawner.container_image = os.environ["DOCKER_NOTEBOOK_IMAGE"]
+c.DockerSpawner.image = os.environ["DOCKER_NOTEBOOK_IMAGE"]
 
 # JupyterHub requires a single-user instance of the Notebook server, so we
 # default to using the `start-singleuser.sh` script included in the
@@ -63,7 +63,7 @@ c.SystemUserSpawner.host_homedir_format_string = "/ssb/bruker/{username}"
 c.FileContentsManager.always_delete_dir = True
 
 # Remove containers once they are stopped
-c.DockerSpawner.remove_containers = True
+c.DockerSpawner.remove = True
 
 # For debugging arguments passed to spawned containers
 c.DockerSpawner.debug = True
