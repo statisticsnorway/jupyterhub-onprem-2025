@@ -22,11 +22,21 @@ services:
       # Mounting SSL_CERT & SSL_KEY
       - "${HOME}/secrets/ssl:/srv/jupyterhub/secrets"
 
-        # Mounting /var/lib/sss so we can use sssd users from host
+        # Mounting SSSD directories for PAM authentication
       - "/var/lib/sss:/var/lib/sss:rw,z"
-
-      - "/run/sssd:/run/sssd:rw,z"  
-
+      - "/run/sssd:/run/sssd:rw,z"
+      
+      # Mount PAM configuration (RHEL 9 host -> Ubuntu Noble container)
+      - "/etc/pam.d:/etc/pam.d:ro"
+      - "/etc/nsswitch.conf:/etc/nsswitch.conf:ro"
+      - "/etc/sssd:/etc/sssd:ro"
+      
+      # Additional RHEL 9 specific mounts for SSSD/PAM compatibility
+      - "/etc/passwd:/etc/passwd:ro"
+      - "/etc/group:/etc/group:ro"
+      - "/etc/shadow:/etc/shadow:ro"
+      
+      # Docker configuration for spawning containers
       - "/home/jupyterhub/.docker:/root/.docker:ro"
 
     environment:
@@ -36,7 +46,7 @@ services:
       # Define the internal network name
       DOCKER_NETWORK_NAME: jupyterhub-network
       # Using this run command (optional)
-      DOCKER_SPAWN_CMD: start-singleuser.sh
+      DOCKER_SPAWN_CMD: jupyterhub-singleuser
       # Other minimal env vars if needed by the config (adjust as needed)
       DATA_VOLUME_CONTAINER: /data # For cookie secret path
       # Should be passed on to jupyterlab instances

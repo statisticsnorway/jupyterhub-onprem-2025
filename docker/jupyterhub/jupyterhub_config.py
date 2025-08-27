@@ -33,7 +33,7 @@ c.DockerSpawner.image = os.environ["DOCKER_NOTEBOOK_IMAGE"]
 # jupyter/docker-stacks *-notebook images as the Docker run command when
 # spawning containers.  Optionally, you can override the Docker run command
 # using the DOCKER_SPAWN_CMD environment variable.
-spawn_cmd = os.environ.get("DOCKER_SPAWN_CMD", "start-singleuser.sh")
+spawn_cmd = os.environ.get("DOCKER_SPAWN_CMD", "jupyterhub-singleuser")
 
 # 'user: root' must be set so the user container is spawned as root,
 # this allows changes to NB_USER, NB_UID and NB_GID

@@ -28,17 +28,18 @@ RUN apt-get update && \
     locales \
     nodejs \
     npm \
-    # SSSD and PAM packages for authentication
+    # SSSD and PAM packages for authentication (Ubuntu Noble compatible with RHEL 9)
     libpam-sss \
     libnss-sss \
     sssd-common \
     sssd-tools \
     pamtester \
     strace \
-    # Additional dependencies
+    # Additional dependencies for RHEL 9 compatibility
     build-essential \
     libffi-dev \
     libssl-dev \
+    libnss3-tools \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
