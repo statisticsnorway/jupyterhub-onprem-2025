@@ -3,8 +3,8 @@ version: '3' # Simplified version
 
 services:
   jupyterhub: # Renamed from 'hub' for clarity
-    image: jupyterhub-onprem-hub
-    # image: ${DOCKER_HUB_IMAGE}
+    # image: jupyterhub-onprem-hub
+    image: ${DOCKER_HUB_IMAGE}
     container_name: jupyterhub
     restart: always
     ports:
@@ -42,8 +42,8 @@ services:
 
     environment:
       # Use the playground image we built
-      # DOCKER_NOTEBOOK_IMAGE: ${DOCKER_NOTEBOOK_IMAGE}
-      DOCKER_NOTEBOOK_IMAGE: jupyterhub-onprem
+      DOCKER_NOTEBOOK_IMAGE: ${DOCKER_NOTEBOOK_IMAGE}
+      # DOCKER_NOTEBOOK_IMAGE: jupyterhub-onprem
       # Define the internal network name
       DOCKER_NETWORK_NAME: jupyterhub-network
       # Using this run command (optional)
@@ -58,14 +58,14 @@ services:
   
     # No command needed here if Dockerfile has CMD/ENTRYPOINT
     # command: jupyterhub -f /srv/jupyterhub/jupyterhub_config.py
-  # statbank-authenticator:
-  #   image: ${STATBANK_AUTHENTICATOR_IMAGE}
-  #   container_name: statbank-authenticator
-  #   restart: always
-  #   environment:
-  #     ON_PREM: "True"
-  #   env_file:
-  #     - ${HOME}/secrets/statbank-authenticator/statbank.env
+  statbank-authenticator:
+    image: ${STATBANK_AUTHENTICATOR_IMAGE}
+    container_name: statbank-authenticator
+    restart: always
+    environment:
+      ON_PREM: "True"
+    env_file:
+      - ${HOME}/secrets/statbank-authenticator/statbank.env
 
 volumes:
   jupyterhub-data: # Simple local volume for data

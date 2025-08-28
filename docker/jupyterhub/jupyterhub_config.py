@@ -25,6 +25,10 @@ c.PAMAuthenticator.admin_groups = {"RBAG_jupyterhub_admins@ssb.no"}
 # Remove users that are no longer able to authenticate
 c.Authenticator.delete_invalid_users = True
 
+
+c.Spawner.args = (getattr(c.Spawner, "args", []) or []) + ["--allow-root"]
+c.Spawner.http_timeout = 120
+
 # Spawn containers from this image
 c.DockerSpawner.image = os.environ["DOCKER_NOTEBOOK_IMAGE"]
 
@@ -101,7 +105,7 @@ data_dir = os.environ.get("DATA_VOLUME_CONTAINER", "/data")
 
 c.JupyterHub.cookie_secret_file = os.path.join(data_dir, "jupyterhub_cookie_secret")
 
-c.JupyterHub.db_url = f'sqlite:///{data_dir}/jupyterhub.sqlite'
+c.JupyterHub.db_url = f"sqlite:///{data_dir}/jupyterhub.sqlite"
 
 c.DockerSpawner.environment = {
     "STATBANK_ENCRYPT_URL": os.environ.get("STATBANK_ENCRYPT_URL", "UNKNOWN"),
