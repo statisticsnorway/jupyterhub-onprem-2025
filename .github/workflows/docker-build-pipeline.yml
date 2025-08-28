@@ -98,7 +98,7 @@ jobs:
         cache-to: type=gha,mode=max
   
   onprem-jupyterhub-build:
-    needs: onprem-jupyterlab-build
+    # needs: onprem-jupyterlab-build
     permissions:
       contents: "read"
       id-token: "write"

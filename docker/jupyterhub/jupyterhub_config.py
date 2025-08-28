@@ -63,7 +63,7 @@ c.SystemUserSpawner.host_homedir_format_string = "/ssb/bruker/{username}"
 c.FileContentsManager.always_delete_dir = True
 
 # Remove containers once they are stopped
-c.DockerSpawner.remove = True
+c.DockerSpawner.remove = False
 
 # For debugging arguments passed to spawned containers
 c.DockerSpawner.debug = True
