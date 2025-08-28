@@ -176,7 +176,7 @@ jobs:
             --data-raw "{\"extra_vars\":{\"repo_name\":\"${REPO_NAME}\",\"target_hosts\":${TARGETS}}}"
 
   deploy_prod:
-    needs: onprem-jupyterhub-build
+    needs: [onprem-jupyterhub-build, onprem-jupyterlab-build]
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: pl-ghashr-p1   #  This is where the GitHub runner is hosted ; *not* the staging host itself
 
