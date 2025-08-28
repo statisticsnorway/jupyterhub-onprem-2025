@@ -42,7 +42,15 @@ spawn_cmd = os.environ.get("DOCKER_SPAWN_CMD", "jupyterhub-singleuser --allow-ro
 
 # 'user: root' must be set so the user container is spawned as root,
 # this allows changes to NB_USER, NB_UID and NB_GID
-c.DockerSpawner.extra_create_kwargs.update({"command": spawn_cmd, "user": "root"})
+c.DockerSpawner.extra_create_kwargs.update({"command": spawn_cmd})
+
+# Enable proper user mapping
+c.SystemUserSpawner.use_sudo = False
+c.DockerSpawner.environment.update({
+    'NB_USER': '{username}',
+    'NB_UID': '{userid}', 
+    'NB_GID': '{groupid}',
+})
 
 # Connect containers to this Docker network
 network_name = os.environ["DOCKER_NETWORK_NAME"]
@@ -68,7 +76,7 @@ c.SystemUserSpawner.host_homedir_format_string = "/ssb/bruker/{username}"
 c.FileContentsManager.always_delete_dir = True
 
 # Remove containers once they are stopped
-c.DockerSpawner.remove = False
+c.DockerSpawner.remove = True
 
 # For debugging arguments passed to spawned containers
 c.DockerSpawner.debug = True
