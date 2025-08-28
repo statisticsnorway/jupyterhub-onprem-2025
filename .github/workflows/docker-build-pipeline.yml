@@ -157,7 +157,7 @@ jobs:
         cache-to: type=gha,mode=max
 
   deploy_staging:
-    needs: [onprem-jupyterhub-build, onprem-jupyterlab-build]
+    needs: onprem-jupyterhub-build
     if: github.ref == 'refs/heads/main'
     runs-on: pl-ghashr-p1
 
