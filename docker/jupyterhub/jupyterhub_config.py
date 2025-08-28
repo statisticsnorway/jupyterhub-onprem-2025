@@ -46,11 +46,6 @@ c.DockerSpawner.extra_create_kwargs.update({"command": spawn_cmd})
 
 # Enable proper user mapping
 c.SystemUserSpawner.use_sudo = False
-c.DockerSpawner.environment.update({
-    'NB_USER': '{username}',
-    'NB_UID': '{userid}', 
-    'NB_GID': '{groupid}',
-})
 
 # Connect containers to this Docker network
 network_name = os.environ["DOCKER_NETWORK_NAME"]
@@ -116,7 +111,13 @@ c.JupyterHub.cookie_secret_file = os.path.join(data_dir, "jupyterhub_cookie_secr
 
 c.JupyterHub.db_url = f"sqlite:///{data_dir}/jupyterhub.sqlite"
 
+# Combine both environment configurations
 c.DockerSpawner.environment = {
+    # User mapping variables (these were getting overridden)
+    'NB_USER': '{username}',
+    'NB_UID': '{userid}', 
+    'NB_GID': '{groupid}',
+    # Application-specific variables
     "STATBANK_ENCRYPT_URL": os.environ.get("STATBANK_ENCRYPT_URL", "UNKNOWN"),
     "STATBANK_BASE_URL": os.environ.get("STATBANK_BASE_URL", "UNKNOWN"),
     # Set the hostname of the server. We use this environment variable to match with the

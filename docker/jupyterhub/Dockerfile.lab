@@ -447,6 +447,10 @@ RUN chmod u-w  /opt/conda/share/jupyter/labextensions
 RUN chmod u-w  /opt/conda/share/jupyter/nbextensions
 RUN chmod u-w  /opt/conda/share/jupyter/lab/extensions
 
+# Install gosu for user switching
+USER root
+RUN apt-get update && apt-get install -y gosu && rm -rf /var/lib/apt/lists/*
+
 # Set up proxy configuration
 ENV https_proxy=http://proxy.ssb.no:3128
 ENV no_proxy=nexus.ssb.no,git-adm.ssb.no,i.test.ssb.no,i.ssb.no,i.qa.ssb.no,data.ssb.no,github.com,api.github.com,codeload.github.com
@@ -476,5 +480,9 @@ ENV npm_config_registry=https://registry.npmjs.org/
 # Expose port
 EXPOSE 8888
 
-# Start the single-user server process expected by JupyterHub
-CMD ["jupyterhub-singleuser"]
+# Copy the startup script
+COPY start-singleuser.sh /usr/local/bin/start-singleuser.sh
+RUN chmod +x /usr/local/bin/start-singleuser.sh
+
+# Use our custom startup script
+CMD ["/usr/local/bin/start-singleuser.sh"]
