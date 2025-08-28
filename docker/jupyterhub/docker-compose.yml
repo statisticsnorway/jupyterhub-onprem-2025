@@ -47,7 +47,7 @@ services:
       # Define the internal network name
       DOCKER_NETWORK_NAME: jupyterhub-network
       # Using this run command (optional)
-      DOCKER_SPAWN_CMD: jupyterhub-singleuser
+      DOCKER_SPAWN_CMD: "jupyterhub-singleuser --allow-root"
       # Other minimal env vars if needed by the config (adjust as needed)
       DATA_VOLUME_CONTAINER: /data # For cookie secret path
       # Should be passed on to jupyterlab instances
