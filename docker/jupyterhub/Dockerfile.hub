@@ -40,6 +40,8 @@ RUN apt-get update && \
     libffi-dev \
     libssl-dev \
     libnss3-tools \
+    # Clipboard utilities
+    xclip \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -92,7 +94,7 @@ RUN chmod +x /usr/local/bin/start-jupyterhub.sh
 RUN chown -R jupyterhub:jupyterhub /srv/jupyterhub /data
 
 # Expose JupyterHub port
-EXPOSE 8000 443
+EXPOSE 8080 443
 
 # Switch to root for startup script (needed for database operations)
 USER root
