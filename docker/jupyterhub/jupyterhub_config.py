@@ -26,8 +26,9 @@ c.PAMAuthenticator.admin_groups = {"RBAG_jupyterhub_admins@ssb.no"}
 c.Authenticator.delete_invalid_users = True
 
 
-c.Spawner.args = (getattr(c.Spawner, "args", []) or []) + ["--allow-root"]
+c.Spawner.args = ["--allow-root"]
 c.Spawner.http_timeout = 120
+c.Spawner.start_timeout = 120
 
 # Spawn containers from this image
 c.DockerSpawner.image = os.environ["DOCKER_NOTEBOOK_IMAGE"]
