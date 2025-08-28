@@ -26,7 +26,7 @@ c.PAMAuthenticator.admin_groups = {"RBAG_jupyterhub_admins@ssb.no"}
 c.Authenticator.delete_invalid_users = True
 
 
-c.Spawner.args = ["--allow-root"]
+c.DockerSpawner.args = ["--allow-root"]
 c.Spawner.http_timeout = 120
 c.Spawner.start_timeout = 120
 
