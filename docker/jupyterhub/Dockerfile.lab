@@ -433,6 +433,15 @@ RUN chmod +x /opt/conda/share/jupyter/kernels/ir/r.sh
 #     chmod g-w /etc/jupyter/*.py && \
 #     rm -f /tmp/jupyter_notebook_extra_config.py
 
+COPY ./jupyter_notebook_extra_config.py /tmp/jse.py
+RUN mkdir -p /etc/jupyter && \
+    touch /etc/jupyter/jupyter_server_config.py && \
+    cat /tmp/jse.py >> /etc/jupyter/jupyter_server_config.py && \
+    chown root:root /etc/jupyter/jupyter_server_config.py && \
+    chmod 0644 /etc/jupyter/jupyter_server_config.py && \
+    rm -f /tmp/jse.py && \
+    [ ! -f /etc/jupyter/jupyter_notebook_config.py ] || rm -f /etc/jupyter/jupyter_notebook_config.py
+
 # Remove duplicate Python lib
 # RUN rm /usr/bin/python3 && ln -s /opt/conda/bin/python3 /usr/bin/python3
 
