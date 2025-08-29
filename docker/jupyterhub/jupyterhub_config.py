@@ -26,8 +26,7 @@ c.PAMAuthenticator.admin_groups = {"RBAG_jupyterhub_admins@ssb.no"}
 c.Authenticator.delete_invalid_users = True
 
 
-c.DockerSpawner.args = ["--allow-root"]
-c.Spawner.http_timeout = 120
+c.DockerSpawner.http_timeout = 120
 c.Spawner.start_timeout = 120
 
 # Spawn containers from this image
@@ -38,14 +37,15 @@ c.DockerSpawner.image = os.environ["DOCKER_NOTEBOOK_IMAGE"]
 # jupyter/docker-stacks *-notebook images as the Docker run command when
 # spawning containers.  Optionally, you can override the Docker run command
 # using the DOCKER_SPAWN_CMD environment variable.
-spawn_cmd = os.environ.get("DOCKER_SPAWN_CMD", "jupyterhub-singleuser --allow-root")
+spawn_cmd = os.environ.get("DOCKER_SPAWN_CMD", "jupyterhub-singleuser")
 
 # 'user: root' must be set so the user container is spawned as root,
 # this allows changes to NB_USER, NB_UID and NB_GID
-c.DockerSpawner.extra_create_kwargs.update({"command": spawn_cmd})
+c.DockerSpawner.extra_create_kwargs.update({"command": spawn_cmd, "user": "root"})
 
-# Enable proper user mapping
-c.SystemUserSpawner.use_sudo = False
+# Enable SystemUserSpawner features
+c.SystemUserSpawner.use_sudo = True  # This allows user switching
+c.SystemUserSpawner.host_homedir_format_string = "/ssb/bruker/{username}"
 
 # Connect containers to this Docker network
 network_name = os.environ["DOCKER_NETWORK_NAME"]
@@ -113,11 +113,12 @@ c.JupyterHub.db_url = f"sqlite:///{data_dir}/jupyterhub.sqlite"
 
 # Combine both environment configurations
 c.DockerSpawner.environment = {
-    # User mapping variables (these were getting overridden)
-    'NB_USER': '{username}',
-    'NB_UID': '{userid}', 
-    'NB_GID': '{groupid}',
-    # Application-specific variables
+    # Remove these lines:
+    # 'NB_USER': '{username}',
+    # 'NB_UID': '{userid}', 
+    # 'NB_GID': '{groupid}',
+    
+    # Keep application-specific variables
     "STATBANK_ENCRYPT_URL": os.environ.get("STATBANK_ENCRYPT_URL", "UNKNOWN"),
     "STATBANK_BASE_URL": os.environ.get("STATBANK_BASE_URL", "UNKNOWN"),
     # Set the hostname of the server. We use this environment variable to match with the

@@ -480,9 +480,11 @@ ENV npm_config_registry=https://registry.npmjs.org/
 # Expose port
 EXPOSE 8888
 
-# Copy the startup script
-COPY start-singleuser.sh /usr/local/bin/start-singleuser.sh
-RUN chmod +x /usr/local/bin/start-singleuser.sh
+# Remove the custom startup script usage
+# Comment out or remove these lines:
+# COPY start-singleuser.sh /usr/local/bin/start-singleuser.sh
+# RUN chmod +x /usr/local/bin/start-singleuser.sh
+# CMD ["/usr/local/bin/start-singleuser.sh"]
 
-# Use our custom startup script
-CMD ["/usr/local/bin/start-singleuser.sh"]
+# Use the standard jupyterhub-singleuser command
+CMD ["jupyterhub-singleuser"]
