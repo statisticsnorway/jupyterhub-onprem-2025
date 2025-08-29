@@ -5,7 +5,6 @@
 source $HOME/.bashrc
 
 export R_PROFILE_USER="/opt/conda/share/jupyter/kernels/ir/Rstartup"
-export R_LIBS_USER="/usr/lib/R/library"
-
-# Run IRkernel
-exec /usr/bin/R --slave -e "IRkernel::main()" $@
+R_BIN="$(command -v R || true)"
+[ -z "$R_BIN" ] && [ -x /usr/local/bin/R ] && R_BIN=/usr/local/bin/R
+exec "$R_BIN" --slave -e "IRkernel::main()" "$@"

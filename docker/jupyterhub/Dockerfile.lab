@@ -97,11 +97,13 @@ ENV LC_ALL=nb_NO.UTF-8
 
 # adding a custom bashrc with git branch in PS1
 COPY ./common-bashrc /etc/skel/.bashrc
+RUN install -d /usr/local/share/etc
+COPY ./common-bashrc /usr/local/share/etc/bashrc.felles
 # Set common codestyle settings and update old users with possible new files from /etc/skel
 RUN mkdir /etc/skel/.config && \
     mkdir -p /usr/local/bin/before-notebook.d && \
-    echo 'tar -cf - -C /etc/skel . | tar --skip-old-files --directory /home/jovyan -xf -' \
-    >  /usr/local/bin/before-notebook.d/sync-skel.sh && \
+    echo 'tar -cf - -C /etc/skel . | tar --skip-old-files --directory "$HOME" -xf -' \
+    > /usr/local/bin/before-notebook.d/sync-skel.sh && \
     chmod +x /usr/local/bin/before-notebook.d/sync-skel.sh
 
 COPY ./common-pycodestyle /etc/skel/.config/pycodestyle
