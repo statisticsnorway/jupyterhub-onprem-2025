@@ -64,14 +64,6 @@ RUN apt-get update && \
     libpoppler-cpp-dev \
     libv8-dev \
     libnode-dev \
-    # SSSD and PAM packages for RHEL 9 host compatibility
-    libpam-sss \
-    libnss-sss \
-    sssd-common \
-    sssd-tools \
-    libnss3-tools \
-    # Clipboard utilities
-    xclip \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -451,11 +443,22 @@ RUN chmod u-w  /opt/conda/share/jupyter/lab/extensions
 USER root
 RUN apt-get update && apt-get install -y gosu && rm -rf /var/lib/apt/lists/*
 
-
-# Make NSS use SSSD for passwd/group lookups so id/whoami can resolve names
-RUN sed -i 's/^passwd:.*/passwd:     files sss systemd/' /etc/nsswitch.conf && \
+# NSS/SSSD client (install after rocker scripts)
+USER root
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        libpam-sss \
+        libnss-sss \
+        sssd-common \
+        sssd-tools \
+        libnss3-tools \
+        xclip && \
+    apt-mark manual libpam-sss libnss-sss sssd-common sssd-tools libnss3-tools || true && \
+    sed -i 's/^passwd:.*/passwd:     files sss systemd/' /etc/nsswitch.conf && \
     sed -i 's/^group:.*/group:      files sss systemd/'  /etc/nsswitch.conf && \
-    sed -i 's/^shadow:.*/shadow:     files/'             /etc/nsswitch.conf
+    sed -i 's/^shadow:.*/shadow:     files/'             /etc/nsswitch.conf && \
+    rm -rf /var/lib/apt/lists/*
+
 
 
 # Set up proxy configuration
