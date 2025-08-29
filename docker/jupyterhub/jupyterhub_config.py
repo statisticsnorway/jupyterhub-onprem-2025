@@ -41,11 +41,8 @@ spawn_cmd = os.environ.get("DOCKER_SPAWN_CMD", "jupyterhub-singleuser")
 
 # 'user: root' must be set so the user container is spawned as root,
 # this allows changes to NB_USER, NB_UID and NB_GID
-c.DockerSpawner.extra_create_kwargs.update({"command": spawn_cmd, "user": "root"})
 
 # Enable SystemUserSpawner features
-c.SystemUserSpawner.use_sudo = True  # This allows user switching
-c.SystemUserSpawner.host_homedir_format_string = "/ssb/bruker/{username}"
 
 # Connect containers to this Docker network
 network_name = os.environ["DOCKER_NETWORK_NAME"]
@@ -62,11 +59,14 @@ c.DockerSpawner.mem_guarantee = "5G"
 c.DockerSpawner.mem_limit = "50G"
 
 # Mounting /ssb/bruker from the jupyterhub container to the user container
-c.DockerSpawner.volumes = {"/ssb": "/ssb"}
-
+c.DockerSpawner.volumes = {
+    "/ssb": "/ssb",
+    "/var/lib/sss/pipes": {"bind": "/var/lib/sss/pipes", "mode": "ro,Z"},
+    "/var/lib/sss/mc":    {"bind": "/var/lib/sss/mc",    "mode": "rw,Z"},
+}
 # host_homedir_format_string must be set to map /ssb/bruker/{username} to /home/{username}
 c.SystemUserSpawner.host_homedir_format_string = "/ssb/bruker/{username}"
-
+c.SystemUserSpawner.container_home_dir = "/ssb/bruker/{username}"
 # Allowing users to delete non-empty directories in the jupyterlab file-explorer
 c.FileContentsManager.always_delete_dir = True
 
