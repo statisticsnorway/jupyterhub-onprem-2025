@@ -95,10 +95,7 @@ ENV LANG=nb_NO.UTF-8
 ENV LANGUAGE=nb_NO:nb
 ENV LC_ALL=nb_NO.UTF-8
 
-# adding a custom bashrc with git branch in PS1
-COPY ./common-bashrc /etc/skel/.bashrc
-RUN install -d /usr/local/share/etc
-COPY ./common-bashrc /usr/local/share/etc/bashrc.felles
+
 # Set common codestyle settings and update old users with possible new files from /etc/skel
 RUN mkdir /etc/skel/.config && \
     mkdir -p /usr/local/bin/before-notebook.d && \
@@ -478,7 +475,10 @@ RUN apt-get update && \
     sed -i 's/^shadow:.*/shadow:     files/'             /etc/nsswitch.conf && \
     rm -rf /var/lib/apt/lists/*
 
-
+# adding a custom bashrc with git branch in PS1
+COPY ./common-bashrc /etc/skel/.bashrc
+RUN install -d /usr/local/share/etc
+COPY ./common-bashrc /usr/local/share/etc/bashrc.felles
 
 # Set up proxy configuration
 ENV https_proxy=http://proxy.ssb.no:3128
