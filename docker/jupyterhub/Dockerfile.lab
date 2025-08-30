@@ -219,6 +219,14 @@ RUN R CMD javareconf -e && \
     R -e "remotes::install_github('statisticsnorway/ReGenesees')" && \
     R -e "remotes::install_github('statisticsnorway/ssb-pickmdl')"
 
+# Replace system Rprofile.site with repo version
+RUN install -d /usr/local/lib/R/etc
+COPY ./Rprofile.site /usr/local/lib/R/etc/Rprofile.site
+RUN chown root:root /usr/local/lib/R/etc/Rprofile.site && chmod 0644 /usr/local/lib/R/etc/Rprofile.site
+
+# Create a symlink to the stamme_variabel file
+RUN ln -s /ssb/share/etc/stamme_variabel /etc/profile.d/stamme_variabel
+
 # Install jwsacruncher
 COPY ./jwsacruncher-2.2.4.zip /tmp/jwsacruncher-2.2.4.zip
 RUN unzip /tmp/jwsacruncher-2.2.4.zip -d /opt && rm -f /tmp/jwsacruncher-2.2.4.zip
