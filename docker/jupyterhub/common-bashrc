@@ -1,3 +1,6 @@
+# Source org-wide variables if present
+[ -f /etc/profile.d/stamme_variabel ] && . /etc/profile.d/stamme_variabel
+
 # /etc/skel/.bashrc
 
 # If not running interactively, don't do anything
@@ -118,3 +121,6 @@ if ! shopt -oq posix; then
   fi
 fi
 eval "$(command conda shell.bash hook 2> /dev/null)"
+
+# Run git config check if available (silent when OK)
+[ -x /usr/local/bin/check-git-config.sh ] && /usr/local/bin/check-git-config.sh || true

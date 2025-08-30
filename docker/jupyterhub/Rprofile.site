@@ -1,0 +1,21 @@
+## --- Global Rprofile.site configuration ---
+
+# Always use libcurl for downloads
+options(download.file.method = 'libcurl')
+
+# Let Nexus (RSPM-compatible) serve correct binaries
+options(HTTPUserAgent = sprintf("R/%s R (%s)", getRversion(),
+       paste(getRversion(),
+             R.version["platform"],
+             R.version["arch"],
+             R.version["os"])))
+
+# Ensure packages can also be found in R_HOME/lib
+home <- Sys.getenv("R_HOME")
+.libPaths(c(file.path(home, "lib"), .libPaths()))
+
+# Set CRAN repo to internal Nexus only
+options(repos = c(CRAN = "https://nexus.ssb.no/repository/packagemanager-rstudio/"))
+
+# Optional: log a message so you know this was loaded
+message(">> Loaded global Rprofile.site with Nexus repo only")
