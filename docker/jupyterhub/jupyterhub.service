@@ -1,15 +1,23 @@
 [Unit]
-Description=Service file for jupyterhub
+Description=JupyterHub (Docker Compose)
+Wants=network-online.target
+After=docker.service network-online.target
 Requires=docker.service
-After=docker.service
 
 [Service]
 Type=oneshot
-RemainAfterExit=true
-User=jupyterhub
 WorkingDirectory=/home/jupyterhub/jupyterhub-onprem/docker/jupyterhub
-ExecStart=/bin/docker compose -f docker-compose.yml up --pull always -d
-ExecStop=/bin/docker compose -f docker-compose.yml stop
+User=jupyterhub
+
+
+# Pull newest images and (re)create containers in one go
+ExecStart=/usr/bin/docker compose -f docker-compose.yml up -d --pull always --remove-orphans --force-recreate
+ExecReload=/usr/bin/docker compose -f docker-compose.yml up -d --pull always --remove-orphans --force-recreate
+ExecStop=/usr/bin/docker compose -f docker-compose.yml down
+
+RemainAfterExit=yes
+TimeoutStartSec=0
+TimeoutStopSec=300
 
 [Install]
 WantedBy=multi-user.target
