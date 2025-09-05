@@ -34,7 +34,7 @@ USER root
 
 # Install basic packages
 RUN apt-get update && \
-    apt-get install -y \
+    apt-get install -y --no-install-recommends \
     wget \
     bzip2 \
     ca-certificates \
@@ -268,7 +268,7 @@ USER root
 
 # Install additional system packages
  RUN apt-get update -y && \
-     apt-get install -y \
+     apt-get install -y --no-install-recommends \
      iputils-ping \
      build-essential \
      pandoc \
@@ -450,9 +450,6 @@ RUN chmod u-w  /opt/conda/share/jupyter/labextensions
 RUN chmod u-w  /opt/conda/share/jupyter/nbextensions
 RUN chmod u-w  /opt/conda/share/jupyter/lab/extensions
 
-# Install gosu for user switching
-USER root
-RUN apt-get update && apt-get install -y gosu && rm -rf /var/lib/apt/lists/*
 
 # NSS/SSSD client (install after rocker scripts)
 USER root
@@ -464,6 +461,7 @@ RUN apt-get update && \
         sssd-tools \
         libnss3-tools \
         xclip && \
+        gosu && \
     apt-mark manual libpam-sss libnss-sss sssd-common sssd-tools libnss3-tools || true && \
     sed -i 's/^passwd:.*/passwd:     files sss systemd/' /etc/nsswitch.conf && \
     sed -i 's/^group:.*/group:      files sss systemd/'  /etc/nsswitch.conf && \
