@@ -442,6 +442,9 @@ RUN mkdir -p /etc/jupyter && \
     rm -f /tmp/jse.py && \
     [ ! -f /etc/jupyter/jupyter_notebook_config.py ] || rm -f /etc/jupyter/jupyter_notebook_config.py
 
+#trying to fix websockets issue
+RUN mkdir -p /tmp/jupyter-runtime && chmod 1777 /tmp/jupyter-runtime
+
 # Remove duplicate Python lib
 # RUN rm /usr/bin/python3 && ln -s /opt/conda/bin/python3 /usr/bin/python3
 

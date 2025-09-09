@@ -130,3 +130,8 @@ c.DockerSpawner.environment = {
     "JUPYTERHUB_HTTP_REFERER": os.environ.get("JUPYTERHUB_HTTP_REFERER", "UNKNOWN"),
     "DAPLA_ENVIRONMENT": os.environ.get("DAPLA_ENVIRONMENT", "UNKNOWN"),
 }
+
+c.DockerSpawner.environment.update({
+    "JUPYTER_RUNTIME_DIR": "/tmp/jupyter-runtime",
+    "JUPYTER_PLATFORM_DIRS": "1",
+})
