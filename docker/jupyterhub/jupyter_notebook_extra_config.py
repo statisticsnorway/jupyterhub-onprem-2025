@@ -19,3 +19,6 @@ c.FileContentsManager.always_delete_dir = True
 
 # Allow users to toggle show/hide hidden files
 c.ContentsManager.allow_hidden = True
+
+# To make jupyterlab terminal go faster
+c.ServerApp.tornado_settings = {"static_cache_max_age": 0}
