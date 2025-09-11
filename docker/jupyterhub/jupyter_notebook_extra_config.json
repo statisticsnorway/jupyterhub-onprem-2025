@@ -1,0 +1,25 @@
+{
+    "ServerApp": {
+      "shutdown_no_activity_timeout": 28800,
+      "tornado_settings": { "static_cache_max_age": 0 }
+    },
+    "Application": {
+      "log_level": "WARN"
+    },
+    "MappingKernelManager": {
+      "cull_idle_timeout": 3600,
+      "cull_interval": 120,
+      "cull_connected": false,
+      "cull_busy": false
+    },
+    "TerminalManager": {
+      "cull_inactive_timeout": 3600,
+      "cull_interval": 120
+    },
+    "FileContentsManager": {
+      "always_delete_dir": true
+    },
+    "ContentsManager": {
+      "allow_hidden": true
+    }
+  }
