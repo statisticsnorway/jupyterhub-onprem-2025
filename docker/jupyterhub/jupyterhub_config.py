@@ -1,4 +1,5 @@
 import os
+import sys
 
 # Configuration file for JupyterHub
 c = get_config()
@@ -17,18 +18,16 @@ c.PAMAuthenticator.service = "login"
 c.PAMAuthenticator.pam_normalize_username = True
 c.PAMAuthenticator.open_sessions = False
 
-c.Authenticator.allow_all = True 
+c.Authenticator.allow_all = True
 
 # Always pull the latest image
 c.DockerSpawner.pull_policy = "always"
-
 
 # Add admin users
 c.PAMAuthenticator.admin_groups = {"RBAG_jupyterhub_admins@ssb.no"}
 
 # Remove users that are no longer able to authenticate
 c.Authenticator.delete_invalid_users = True
-
 
 c.DockerSpawner.http_timeout = 120
 c.Spawner.start_timeout = 120
@@ -42,9 +41,6 @@ c.DockerSpawner.image = os.environ["DOCKER_NOTEBOOK_IMAGE"]
 # spawning containers.  Optionally, you can override the Docker run command
 # using the DOCKER_SPAWN_CMD environment variable.
 spawn_cmd = os.environ.get("DOCKER_SPAWN_CMD", "jupyterhub-singleuser")
-
-# 'user: root' must be set so the user container is spawned as root,
-# this allows changes to NB_USER, NB_UID and NB_GID
 
 # Enable SystemUserSpawner features
 
@@ -84,8 +80,6 @@ c.DockerSpawner.debug = True
 c.JupyterHub.authenticate_prometheus = False
 
 # Jupyterhub idle-culler-service
-import sys
-
 c.JupyterHub.services = [
     {
         "name": "jupyterhub-idle-culler-service",
@@ -108,6 +102,17 @@ c.JupyterHub.port = 443
 c.JupyterHub.ssl_key = os.environ["SSL_KEY"]
 c.JupyterHub.ssl_cert = os.environ["SSL_CERT"]
 
+# ---------------------------
+# Disable browser caching for Hub pages/assets
+c.JupyterHub.extra_headers = {
+    "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+    "Pragma": "no-cache",
+    "Expires": "0",
+}
+# Also prevent long-lived caching of Hub static files
+c.JupyterHub.tornado_settings = {"static_cache_max_age": 0}
+# ---------------------------
+
 # Persist hub data on volume mounted inside container
 data_dir = os.environ.get("DATA_VOLUME_CONTAINER", "/data")
 
@@ -117,11 +122,6 @@ c.JupyterHub.db_url = f"sqlite:///{data_dir}/jupyterhub.sqlite"
 
 # Combine both environment configurations
 c.DockerSpawner.environment = {
-    # Remove these lines:
-    # 'NB_USER': '{username}',
-    # 'NB_UID': '{userid}', 
-    # 'NB_GID': '{groupid}',
-    
     # Keep application-specific variables
     "STATBANK_ENCRYPT_URL": os.environ.get("STATBANK_ENCRYPT_URL", "UNKNOWN"),
     "STATBANK_BASE_URL": os.environ.get("STATBANK_BASE_URL", "UNKNOWN"),

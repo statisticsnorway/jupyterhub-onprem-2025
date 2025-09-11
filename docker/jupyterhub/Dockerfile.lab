@@ -426,21 +426,11 @@ COPY ./kernels/python3 /opt/conda/share/jupyter/kernels/python3/
 RUN chmod +x /opt/conda/share/jupyter/kernels/python3/python.sh
 RUN chmod +x /opt/conda/share/jupyter/kernels/ir/r.sh
 
-# COPY jupyter_notebook_extra_config.py /tmp/
-# RUN cat /tmp/jupyter_notebook_extra_config.py >> /etc/jupyter/jupyter_server_config.py && \
-#     # Remove support for legacy Notebook Server, see https://github.com/jupyter/docker-stacks/blob/main/base-notebook/Dockerfile#L64
-#     rm /etc/jupyter/jupyter_notebook_config.py && \
-#     chmod g-w /etc/jupyter/*.py && \
-#     rm -f /tmp/jupyter_notebook_extra_config.py
-
-COPY ./jupyter_notebook_extra_config.py /tmp/jse.py
-RUN mkdir -p /etc/jupyter && \
-    touch /etc/jupyter/jupyter_server_config.py && \
-    cat /tmp/jse.py >> /etc/jupyter/jupyter_server_config.py && \
-    chown root:root /etc/jupyter/jupyter_server_config.py && \
-    chmod 0644 /etc/jupyter/jupyter_server_config.py && \
-    rm -f /tmp/jse.py && \
-    [ ! -f /etc/jupyter/jupyter_notebook_config.py ] || rm -f /etc/jupyter/jupyter_notebook_config.py
+# System Jupyter Server config (drop-in file)
+RUN mkdir -p /etc/jupyter/jupyter_server_config.d
+COPY ./jupyter_notebook_extra_config.py /etc/jupyter/jupyter_server_config.d/99-extra-config.py
+RUN chown root:root /etc/jupyter/jupyter_server_config.d/99-extra-config.py && \
+    chmod 0644 /etc/jupyter/jupyter_server_config.d/99-extra-config.py
 
 #trying to fix websockets issue
 RUN mkdir -p /tmp/jupyter-runtime && chmod 1777 /tmp/jupyter-runtime
