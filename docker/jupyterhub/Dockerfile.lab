@@ -409,9 +409,9 @@ RUN mkdir -p /opt/conda/etc/jupyter/labconfig && \
     cat > /opt/conda/etc/jupyter/labconfig/page_config.json <<'JSON'
 {
   "workspacesDisabled": true,
-  "disabledExtensions": [
-    "@jupyterlab/apputils-extension:layout"
-  ]
+  "disabledExtensions": {
+    "@jupyterlab/apputils-extension:layout": true
+  }
 }
 JSON
 
