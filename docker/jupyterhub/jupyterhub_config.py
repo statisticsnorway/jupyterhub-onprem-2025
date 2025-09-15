@@ -135,3 +135,20 @@ c.DockerSpawner.environment.update({
     "JUPYTER_RUNTIME_DIR": "/tmp/jupyter-runtime",
     "JUPYTER_PLATFORM_DIRS": "1",
 })
+# -------------------------------------------------------------------
+# Extra args to enforce single-user server config across all spawns
+# -------------------------------------------------------------------
+c.Spawner.args = [
+    "--ServerApp.default_url=/lab/workspaces/lab?reset"
+    "--ServerApp.shutdown_no_activity_timeout=28800",
+    "--ServerApp.tornado_settings={\"static_cache_max_age\":0}",
+    "--ServerApp.log_level=INFO",
+    "--MappingKernelManager.cull_idle_timeout=3600",
+    "--MappingKernelManager.cull_interval=120",
+    "--MappingKernelManager.cull_connected=False",
+    "--MappingKernelManager.cull_busy=False",
+    "--TerminalManager.cull_inactive_timeout=3600",
+    "--TerminalManager.cull_interval=120",
+    "--FileContentsManager.always_delete_dir=True",
+    "--ContentsManager.allow_hidden=True"
+]

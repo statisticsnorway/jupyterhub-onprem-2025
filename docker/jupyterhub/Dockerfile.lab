@@ -179,7 +179,6 @@ RUN R CMD javareconf -e && \
     R -e "install.packages('arrow', dependencies=FALSE, repos='${CRAN}')" && \
     R -e "install.packages('leaflet', dependencies=TRUE, repos='${CRAN}')" && \
     R -e "install.packages('getPass', dependencies=TRUE, repos='${CRAN}')" && \
-    R -e "install.packages('googleCloudStorageR', dependencies=TRUE, repos='${CRAN}')" && \
     R -e "install.packages('DT', dependencies=TRUE, repos='${CRAN}')" && \
     R -e "install.packages('rjwsacruncher', dependencies=TRUE, repos='${CRAN}')" && \
     R -e "install.packages('sf', dependencies=TRUE, repos='${CRAN}')" && \
@@ -387,14 +386,49 @@ RUN pipx install nox && \
 RUN pip install dash
 
 RUN jupyter labextension list
-# Ensure JupyterLab 4.x using the provided script
-RUN jupyter labextension disable @jupyterlab/docmanager-extension:download && \
-    jupyter labextension disable @jupyterlab/filebrowser-extension:download && \
-    jupyter labextension disable @jupyterlab/extensionmanager-extension && \
-    jupyter labextension disable "@jupyterlab/apputils-extension:announcements"  && \
-    jupyter labextension disable jupyterlab-dash  && \
+
+# ---------------- JupyterLab client-state fixes ----------------
+# Front-end: stop auto-restore + common cluster pollers; then rebuild Lab
+RUN set -eux; \
+    jupyter labextension disable @jupyterlab/docmanager-extension:download || true; \
+    jupyter labextension disable @jupyterlab/filebrowser-extension:download || true; \
+    jupyter labextension disable @jupyterlab/extensionmanager-extension || true; \
+    jupyter labextension disable "@jupyterlab/apputils-extension:announcements" || true; \
+    jupyter labextension disable "@jupyterlab/apputils-extension:layout" || true;  \
+    jupyter labextension disable jupyterlab-dash || true; \
+    # Common "clusters" poller plugins (adjust if your plugin id differs)
+    jupyter labextension disable "@dask/dask-labextension:plugin" || true; \
+    jupyter labextension disable "@dask/gateway-extension:plugin" || true; \
+    jupyter labextension disable "jupyterlab-kubernetes:plugin" || true; \
     jupyter lab build
+
 RUN jupyter lab --version
+
+# Workspaces cannot be disabled via CLI; do it via page_config.json
+RUN mkdir -p /opt/conda/etc/jupyter/labconfig && \
+    cat > /opt/conda/etc/jupyter/labconfig/page_config.json <<'JSON'
+{
+  "workspacesDisabled": true,
+  "disabledExtensions": [
+    "@jupyterlab/apputils-extension:layout"
+  ]
+}
+JSON
+
+# Server-side: disable back-end counterparts for common cluster pollers (safe no-ops if missing)
+RUN mkdir -p /opt/conda/etc/jupyter/jupyter_server_config.d && \
+    cat > /opt/conda/etc/jupyter/jupyter_server_config.d/disable_clusters.json <<'JSON'
+{
+  "ServerApp": {
+    "jpserver_extensions": {
+      "dask_labextension": false,
+      "dask_gateway": false,
+      "jupyterlab_kubernetes": false
+    }
+  }
+}
+JSON
+# ---------------------------------------------------------------
 
 # Set template version for ssb-project-cli
 ENV STAT_TEMPLATE_DEFAULT_REFERENCE="1.1.9"
@@ -426,13 +460,7 @@ COPY ./kernels/python3 /opt/conda/share/jupyter/kernels/python3/
 RUN chmod +x /opt/conda/share/jupyter/kernels/python3/python.sh
 RUN chmod +x /opt/conda/share/jupyter/kernels/ir/r.sh
 
-# System Jupyter Server config (JSON drop-in)
-RUN mkdir -p /opt/conda/etc/jupyter/jupyter_server_config.d
-COPY ./jupyter_notebook_extra_config.json /opt/conda/etc/jupyter/jupyter_server_config.d/jupyter_notebook_extra_config.json
-RUN chmod 0644 /opt/conda/etc/jupyter/jupyter_server_config.d/jupyter_notebook_extra_config.json
-
-
-#trying to fix websockets issue
+# trying to fix websockets issue and adding runtime dir inside of the container
 RUN mkdir -p /tmp/jupyter-runtime && chmod 1777 /tmp/jupyter-runtime
 
 # Remove duplicate Python lib
