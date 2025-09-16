@@ -1,0 +1,30 @@
+{
+  "name": "hub-control-panel-same-tab",
+  "version": "0.1.0",
+  "description": "Open JupyterHub Control Panel in same tab",
+  "license": "BSD-3-Clause",
+  "author": "SSB",
+  "private": true,
+  "jupyterlab": {
+    "extension": true
+  },
+  "scripts": {
+    "build": "webpack",
+    "clean": "rimraf lib build"
+  },
+  "devDependencies": {
+    "@jupyterlab/builder": "^4.2.0",
+    "@types/node": "^20.11.0",
+    "rimraf": "^5.0.5",
+    "ts-loader": "^9.5.1",
+    "typescript": "^5.4.0",
+    "webpack": "^5.91.0",
+    "webpack-cli": "^5.1.4"
+  },
+  "dependencies": {
+    "@jupyterlab/application": "^4.2.0",
+    "@jupyterlab/coreutils": "^6.2.0"
+  },
+  "main": "lib/index.js"
+}
+

@@ -387,6 +387,26 @@ RUN pip install dash
 
 RUN jupyter labextension list
 
+# Install tiny labextension to open Hub Control Panel in same tab
+WORKDIR /opt/jupyter-ext/hub-control-panel-same-tab
+COPY ./labextensions/hub-control-panel-same-tab /opt/jupyter-ext/hub-control-panel-same-tab
+RUN npm ci || npm install && \
+    npm run build && \
+    jupyter labextension develop . --overwrite
+
+# Disable unwanted extensions and build Lab once
+RUN set -eux; \
+    jupyter labextension disable @jupyterlab/docmanager-extension:download || true; \
+    jupyter labextension disable @jupyterlab/filebrowser-extension:download || true; \
+    jupyter labextension disable @jupyterlab/extensionmanager-extension || true; \
+    jupyter labextension disable "@jupyterlab/apputils-extension:announcements" || true; \
+    jupyter labextension disable "@jupyterlab/apputils-extension:layout" || true; \
+    jupyter labextension disable jupyterlab-dash || true; \
+    # (any other disables) \
+    jupyter lab build
+
+WORKDIR ${WORKSPACE_DIR}
+
 # ---------------- JupyterLab client-state fixes ----------------
 # Front-end: stop auto-restore + common cluster pollers; then rebuild Lab
 RUN set -eux; \
