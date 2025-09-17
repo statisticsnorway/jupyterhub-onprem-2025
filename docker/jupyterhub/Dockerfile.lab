@@ -357,6 +357,7 @@ RUN /opt/scripts/install-jupyterlab.sh && \
     python3 -m pip install saspy && \
     python3 -m pip install ipydatagrid && \
     python3 -m pip install pipx && \
+    # Dependencies for ssb-project-cli 
     python3 -m pip install --no-cache-dir "click>=8.1,<9" && \
     python3 -m pip install --no-cache-dir "typer>=0.9,<0.12" && \
     # If R is installed, make its kernel available in Jupyter
@@ -387,7 +388,7 @@ RUN pip install dash
 
 RUN jupyter labextension list
 
-# Install tiny labextension to open Hub Control Panel in same tab
+# Install tiny labextension to open Hub Control Panel in same tab to fix sluggish terminal loading
 WORKDIR /opt/jupyter-ext/hub-control-panel-same-tab
 COPY ./labextensions/hub-control-panel-same-tab /opt/jupyter-ext/hub-control-panel-same-tab
 RUN npm ci || npm install && \
@@ -402,51 +403,15 @@ RUN set -eux; \
     jupyter labextension disable "@jupyterlab/apputils-extension:announcements" || true; \
     jupyter labextension disable "@jupyterlab/apputils-extension:layout" || true; \
     jupyter labextension disable jupyterlab-dash || true; \
-    # (any other disables) \
+    jupyter labextension disable "@dask/dask-labextension:plugin" || true; \
+    jupyter labextension disable "@dask/gateway-extension:plugin" || true; \
+    jupyter labextension disable "jupyterlab-kubernetes:plugin" || true; \
     jupyter lab build
 
 WORKDIR ${WORKSPACE_DIR}
 
-# ---------------- JupyterLab client-state fixes ----------------
-# Front-end: stop auto-restore + common cluster pollers (already built once above)
-RUN set -eux; \
-    jupyter labextension disable @jupyterlab/docmanager-extension:download || true; \
-    jupyter labextension disable @jupyterlab/filebrowser-extension:download || true; \
-    jupyter labextension disable @jupyterlab/extensionmanager-extension || true; \
-    jupyter labextension disable "@jupyterlab/apputils-extension:announcements" || true; \
-    jupyter labextension disable "@jupyterlab/apputils-extension:layout" || true;  \
-    jupyter labextension disable jupyterlab-dash || true; \
-    jupyter labextension disable "@dask/dask-labextension:plugin" || true; \
-    jupyter labextension disable "@dask/gateway-extension:plugin" || true; \
-    jupyter labextension disable "jupyterlab-kubernetes:plugin" || true;
 
 RUN jupyter lab --version
-
-# Workspaces cannot be disabled via CLI; do it via page_config.json
-RUN mkdir -p /opt/conda/etc/jupyter/labconfig && \
-    cat > /opt/conda/etc/jupyter/labconfig/page_config.json <<'JSON'
-{
-  "workspacesDisabled": true,
-  "disabledExtensions": {
-    "@jupyterlab/apputils-extension:layout": true
-  }
-}
-JSON
-
-# Server-side: disable back-end counterparts for common cluster pollers (safe no-ops if missing)
-RUN mkdir -p /opt/conda/etc/jupyter/jupyter_server_config.d && \
-    cat > /opt/conda/etc/jupyter/jupyter_server_config.d/disable_clusters.json <<'JSON'
-{
-  "ServerApp": {
-    "jpserver_extensions": {
-      "dask_labextension": false,
-      "dask_gateway": false,
-      "jupyterlab_kubernetes": false
-    }
-  }
-}
-JSON
-# ---------------------------------------------------------------
 
 # Set template version for ssb-project-cli
 ENV STAT_TEMPLATE_DEFAULT_REFERENCE="1.1.9"

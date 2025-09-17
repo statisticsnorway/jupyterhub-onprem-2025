@@ -139,10 +139,9 @@ c.DockerSpawner.environment.update({
 # Extra args to enforce single-user server config across all spawns
 # -------------------------------------------------------------------
 c.Spawner.args = [
-    "--ServerApp.default_url=/lab/workspaces/lab?reset"
     "--ServerApp.shutdown_no_activity_timeout=28800",
     "--ServerApp.tornado_settings={\"static_cache_max_age\":0}",
-    "--ServerApp.log_level=INFO",
+    "--ServerApp.log_level=WARN",
     "--MappingKernelManager.cull_idle_timeout=3600",
     "--MappingKernelManager.cull_interval=120",
     "--MappingKernelManager.cull_connected=False",
