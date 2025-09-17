@@ -29,9 +29,8 @@ const plugin: JupyterFrontEndPlugin<void> = {
       }
     });
 
-    // Ensure it’s in the File menu, first item under "Hub" group
-    const fileMenu = mainMenu.fileMenu.menu;
-    fileMenu.addItem({ command: cmd, rank: 0 });
+    // Legg det inn i File-menyen som første element i en egen gruppe
+    mainMenu.fileMenu.addGroup([{ command: cmd }], 0);
   }
 };
 
