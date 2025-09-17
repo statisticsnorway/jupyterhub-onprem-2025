@@ -9,7 +9,7 @@
     "extension": true
   },
   "scripts": {
-    "build": "webpack",
+    "build": "rimraf lib && tsc -p tsconfig.json",
     "clean": "rimraf lib build"
   },
   "devDependencies": {
@@ -27,6 +27,7 @@
     "@jupyterlab/application": ">=4.4.7 <5",
     "@jupyterlab/mainmenu": ">=4.4.7 <5"
   },
-  "main": "lib/index.js"
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts"
 }
 
