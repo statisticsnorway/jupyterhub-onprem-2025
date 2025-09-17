@@ -1,5 +1,4 @@
 import { JupyterFrontEnd, JupyterFrontEndPlugin } from '@jupyterlab/application';
-import { PageConfig } from '@jupyterlab/coreutils';
 
 const plugin: JupyterFrontEndPlugin<void> = {
   id: 'hub-control-panel-same-tab:plugin',
@@ -11,7 +10,19 @@ const plugin: JupyterFrontEndPlugin<void> = {
       app.commands.addCommand(cmd, {
         label: 'Hub Control Panel',
         execute: () => {
-          const hubPrefix = PageConfig.getOption('hubPrefix') || '/hub/';
+          // Read config from the DOM to avoid depending on @jupyterlab/coreutils
+          let hubPrefix = '/hub/';
+          const el = document.getElementById('jupyter-config-data');
+          if (el) {
+            try {
+              const cfg = JSON.parse(el.textContent || '{}');
+              if (cfg && typeof cfg.hubPrefix === 'string') {
+                hubPrefix = cfg.hubPrefix;
+              }
+            } catch {
+              /* ignore parse errors */
+            }
+          }
           // Navigate in the same tab
           window.location.assign(`${hubPrefix}home`);
         }

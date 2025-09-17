@@ -392,7 +392,7 @@ WORKDIR /opt/jupyter-ext/hub-control-panel-same-tab
 COPY ./labextensions/hub-control-panel-same-tab /opt/jupyter-ext/hub-control-panel-same-tab
 RUN npm ci || npm install && \
     npm run build && \
-    jupyter labextension develop . --overwrite
+    jupyter labextension install . --no-build
 
 # Disable unwanted extensions and build Lab once
 RUN set -eux; \
@@ -408,7 +408,7 @@ RUN set -eux; \
 WORKDIR ${WORKSPACE_DIR}
 
 # ---------------- JupyterLab client-state fixes ----------------
-# Front-end: stop auto-restore + common cluster pollers; then rebuild Lab
+# Front-end: stop auto-restore + common cluster pollers (already built once above)
 RUN set -eux; \
     jupyter labextension disable @jupyterlab/docmanager-extension:download || true; \
     jupyter labextension disable @jupyterlab/filebrowser-extension:download || true; \
@@ -416,11 +416,9 @@ RUN set -eux; \
     jupyter labextension disable "@jupyterlab/apputils-extension:announcements" || true; \
     jupyter labextension disable "@jupyterlab/apputils-extension:layout" || true;  \
     jupyter labextension disable jupyterlab-dash || true; \
-    # Common "clusters" poller plugins (adjust if your plugin id differs)
     jupyter labextension disable "@dask/dask-labextension:plugin" || true; \
     jupyter labextension disable "@dask/gateway-extension:plugin" || true; \
-    jupyter labextension disable "jupyterlab-kubernetes:plugin" || true; \
-    jupyter lab build
+    jupyter labextension disable "jupyterlab-kubernetes:plugin" || true;
 
 RUN jupyter lab --version
 
