@@ -113,7 +113,6 @@ ENV JAVA_VERSION=${JAVA_VERSION}
 ENV JAVA_HOME="/usr/lib/jvm/java-$JAVA_VERSION-openjdk-amd64"
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
-RUN sed -i "/^PATH=/c\PATH=$PATH" "$R_HOME/etc/Renviron.site"
 
 # Apache Arrow configuration
 ARG ARROW_VERSION="18.1.0"
@@ -160,6 +159,8 @@ RUN /rocker_scripts/install_R_source.sh && \
     ln -s /opt/jwsacruncher-2.2.4/bin/jwsacruncher /usr/bin/jwsacruncher && \
     # Fix permissions
     chown -R ${USERNAME}:${GROUPNAME} ${HOME} ${R_HOME}
+
+RUN sed -i "/^PATH=/c\PATH=$PATH" "$R_HOME/etc/Renviron.site"
 
 # ------------------------------------------------------------------------------
 # Python/Conda installation and configuration
@@ -326,6 +327,7 @@ COPY ./common-bashrc /usr/local/share/etc/bashrc.felles
 
 # Change default R repo
 COPY Rprofile.site /etc/R/Rprofile.site
+
 
 # Create a symlink to the stamme_variabel file
 RUN ln -s /ssb/share/etc/stamme_variabel /etc/profile.d/stamme_variabel
