@@ -133,8 +133,7 @@ RUN mkdir -p /rocker_scripts && \
     cp -r /tmp/rocker-versioned2/scripts/* /rocker_scripts/ && \
     rm -rf /tmp/rocker-versioned2 && \
     chown -R ${USERNAME}:${GROUPNAME} /rocker_scripts/ && \
-    chmod -R 700 /rocker_scripts/ && \
-    ls -la /rocker_scripts/ \
+    chmod -R 700 /rocker_scripts/
 
 # Copy jwsacruncher
 COPY ./jwsacruncher-2.2.4.zip /tmp/jwsacruncher-2.2.4.zip
