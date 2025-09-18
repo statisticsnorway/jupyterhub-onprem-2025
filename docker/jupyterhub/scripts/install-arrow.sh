@@ -6,7 +6,7 @@
 #     → libarrow* 18.0.0-1   +   arrow 18.0.0   –or– 18.0.0.1, etc.
 # --------------------------------------------------------------------
 set -euo pipefail
-CRAN="${CRAN:-https://packagemanager.posit.co/cran/__linux__/noble/latest}"
+CRAN=https://cloud.r-project.org
 
 : "${ARROW_VERSION:?ARROW_VERSION (e.g. 18.0.0) must be exported}"
 echo "▶  Arrow APT target  : $ARROW_VERSION"
