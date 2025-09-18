@@ -36,10 +36,10 @@ RUN groupmod -g ${GID} ${GROUPNAME} && \
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # Configure locale
-RUN locale-gen nb_NO.UTF-8 && \
-    update-locale LANG=nb_NO.UTF-8 && \
-    echo "nb_NO.UTF-8 UTF-8" > /etc/locale.gen && \
-    locale-gen
+RUN apt-get update && apt-get install -y locales \
+    && echo "nb_NO.UTF-8 UTF-8" >> /etc/locale.gen \
+    && locale-gen nb_NO.UTF-8 \
+    && update-locale LANG=nb_NO.UTF-8
 
 # Make sudo passwordless
 RUN echo '${USERNAME} ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
