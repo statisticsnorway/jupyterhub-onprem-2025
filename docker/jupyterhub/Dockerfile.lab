@@ -124,8 +124,7 @@ ENV CRAN="https://packagemanager.posit.co/cran/__linux__/noble/latest"
 COPY ./scripts /opt/scripts/
 RUN chmod +x -R /opt/scripts/ && \
     chown -R ${USERNAME}:${GROUPNAME} /opt/scripts/ && \
-    chmod -R 700 /opt/scripts/ && \
-    ls -la /opt/scripts/
+    chmod -R 700 /opt/scripts/
 
 # Clone and prepare R installation scripts
 RUN mkdir -p /rocker_scripts && \
@@ -140,23 +139,14 @@ COPY ./jwsacruncher-2.2.4.zip /tmp/jwsacruncher-2.2.4.zip
 
 # Install R from source and link jwsacruncher
 RUN /rocker_scripts/install_R_source.sh && \
-    # Install java \
     /opt/scripts/install-java.sh && \
-    # Setting up R with specific version
     /rocker_scripts/setup_R.sh && \
-    # Re-install system libs that may have been removed by autoremove in rocker scripts
     /opt/scripts/install-system-libs.sh && \
-    # Install additional system libs needed by R packages
     /opt/scripts/install-system-libs-R.sh && \
-    # Install R packages \
     /opt/scripts/install-r-packages.sh && \
-    # install arrow
     /opt/scripts/install-arrow.sh && \
-    # Install jwsacruncher
     unzip /tmp/jwsacruncher-2.2.4.zip -d /opt && rm -f /tmp/jwsacruncher-2.2.4.zip && \
-    # Create symlink to jwsacruncher
     ln -s /opt/jwsacruncher-2.2.4/bin/jwsacruncher /usr/bin/jwsacruncher && \
-    # Fix permissions
     chown -R ${USERNAME}:${GROUPNAME} ${HOME} ${R_HOME}
 
 RUN sed -i "/^PATH=/c\PATH=$PATH" "$R_HOME/etc/Renviron.site"
@@ -312,7 +302,7 @@ RUN apt-get update && \
         libnss-sss \
         sssd-common \
         sssd-tools \
-        libnss3-tools \
+        libnss3-tools && \
     apt-mark manual libpam-sss libnss-sss sssd-common sssd-tools libnss3-tools || true && \
     sed -i 's/^passwd:.*/passwd:     files sss systemd/' /etc/nsswitch.conf && \
     sed -i 's/^group:.*/group:      files sss systemd/'  /etc/nsswitch.conf && \
