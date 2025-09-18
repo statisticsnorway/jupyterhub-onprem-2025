@@ -3,7 +3,11 @@ FROM ${BASE_IMAGE}
 
 LABEL maintainer="Statistics Norway"
 
-# System-wide configuration
+# ------------------------------------------------------------------------------
+# Set up base environment
+# ------------------------------------------------------------------------------
+USER root
+
 SHELL ["/bin/bash", "-c"]
 ENV SHELL="/bin/bash"
 ENV DEBIAN_FRONTEND="noninteractive"
@@ -28,45 +32,6 @@ RUN groupmod -g ${GID} ${GROUPNAME} && \
     # Disable default sudo message when opening shell
     touch ${HOME}/.sudo_as_admin_successful
 
-WORKDIR ${WORKSPACE_DIR}
-
-USER root
-
-# Install basic packages
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    wget \
-    bzip2 \
-    ca-certificates \
-    sudo \
-    locales \
-    fonts-liberation \
-    run-one \
-    curl \
-    git \
-    gnupg \
-    lsb-release \
-    software-properties-common \
-    alien \
-    # libaio1 \
-    libaio-dev \
-    libgit2-dev \
-    libbz2-dev \
-    libfontconfig1-dev \
-    libfreetype6-dev \
-    libpng-dev \
-    libtiff5-dev \
-    libjpeg-dev \
-    libharfbuzz-dev \
-    libfribidi-dev \
-    libopenblas-dev \
-    libglpk-dev \
-    libpoppler-cpp-dev \
-    libv8-dev \
-    libnode-dev \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
 # Set timezone to Oslo
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
@@ -82,19 +47,10 @@ RUN echo '${USERNAME} ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
 # Set up PATH
 ENV PATH="${PATH}:${HOME}/.local/bin:${HOME}/.krew/bin:${HOME}/work/.local/pipx/bin"
 
-# Download git completion and git prompt scripts
-RUN curl -o ${HOME}/.git-completion.bash https://raw.githubusercontent.com/git/git/master/contrib/completion/git-completion.bash && \
-    curl -o ${HOME}/.git-prompt.sh https://raw.githubusercontent.com/git/git/master/contrib/completion/git-prompt.sh && \
-    chown ${USERNAME}:${GROUPNAME} ${HOME}/.git-completion.bash ${HOME}/.git-prompt.sh && \
-    echo "source ~/.git-completion.bash" >> ${HOME}/.bashrc && \
-    echo "source ~/.git-prompt.sh" >> ${HOME}/.bashrc && \
-    echo 'export PS1="\[\e[1;32m\]\u@\h:\[\e[1;34m\]\w\[\e[1;31m\]\$(__git_ps1 \" (%s)\")\[\e[0m\]\$ "' >> ${HOME}/.bashrc
-
 # Set locales
 ENV LANG=nb_NO.UTF-8
 ENV LANGUAGE=nb_NO:nb
 ENV LC_ALL=nb_NO.UTF-8
-
 
 # Set common codestyle settings and update old users with possible new files from /etc/skel
 RUN mkdir /etc/skel/.config && \
@@ -105,28 +61,49 @@ RUN mkdir /etc/skel/.config && \
 
 COPY ./common-pycodestyle /etc/skel/.config/pycodestyle
 
-# Install ssb_gitconfig.py script
-RUN wget -O /usr/local/bin/ssb_gitconfig.py https://raw.githubusercontent.com/statisticsnorway/kvakk-git-tools/main/kvakk_git_tools/ssb_gitconfig.py
-RUN chmod +x /usr/local/bin/ssb_gitconfig.py
+WORKDIR ${WORKSPACE_DIR}
 
-COPY ./check-git-config.bash /usr/local/bin/check-git-config.sh
-RUN chmod +x /usr/local/bin/check-git-config.sh
+# ------------------------------------------------------------------------------
+# Setup system dependencies and configurations
+# ------------------------------------------------------------------------------
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    wget \
+    bzip2 \
+    ca-certificates \
+    sudo \
+    locales \
+    fonts-liberation \
+    run-one \
+    curl \
+    git \
+    gnupg \
+    lsb-release \
+    software-properties-common \
+    alien \
+    libaio-dev \
+    libgit2-dev \
+    libbz2-dev \
+    libfontconfig1-dev \
+    libfreetype6-dev \
+    libpng-dev \
+    libtiff5-dev \
+    libjpeg-dev \
+    libharfbuzz-dev \
+    libfribidi-dev \
+    libopenblas-dev \
+    libglpk-dev \
+    libpoppler-cpp-dev \
+    libv8-dev \
+    libnode-dev \
+    chown -R ${USERNAME}:${GROUPNAME} ${HOME} \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
+# ------------------------------------------------------------------------------
+# R and Java installation and configuration
+# ------------------------------------------------------------------------------
 
-
-
-
-# required by dapla team cli
-ENV DAPLA_TEAM_API_BASE_URL="http://dapla-team-api.dapla.svc.cluster.local/"
-
-# Fix permissions
-RUN chown -R ${USERNAME}:${GROUPNAME} ${HOME}
-
-USER ${UID}
-
-LABEL maintainer="Statistics Norway"
-
-# R Config
 ARG R_VERSION="4.4.0"
 ENV R_VERSION=${R_VERSION}
 ENV R_HOME="/usr/local/lib/R"
@@ -138,13 +115,21 @@ ENV JAVA_VERSION=${JAVA_VERSION}
 ENV JAVA_HOME="/usr/lib/jvm/java-$JAVA_VERSION-openjdk-amd64"
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
-USER root
+RUN sed -i "/^PATH=/c\PATH=$PATH" "$R_HOME/etc/Renviron.site"
+
+# Apache Arrow configuration
+ARG ARROW_VERSION="18.1.0"
+ENV ARROW_VERSION=${ARROW_VERSION}
+
+# Use RStudio's package manager to download packages as binaries
+ENV CRAN="https://packagemanager.posit.co/cran/__linux__/noble/latest"
 
 COPY ./scripts /opt/scripts/
-RUN chmod +x -R /opt/scripts/
-RUN chown -R ${USERNAME}:${GROUPNAME} /opt/scripts/ 
-RUN chmod -R 700 /opt/scripts/
-RUN ls -la /opt/scripts/
+RUN chmod +x -R /opt/scripts/ && \
+    chown -R ${USERNAME}:${GROUPNAME} /opt/scripts/ && \
+    chmod -R 700 /opt/scripts/ && \
+    ls -la /opt/scripts/
+
 # Clone and prepare R installation scripts
 RUN mkdir -p /rocker_scripts && \
     git clone --branch R${R_VERSION} --depth 1 https://github.com/rocker-org/rocker-versioned2.git /tmp/rocker-versioned2 && \
@@ -152,182 +137,96 @@ RUN mkdir -p /rocker_scripts && \
     rm -rf /tmp/rocker-versioned2 && \
     chown -R ${USERNAME}:${GROUPNAME} /rocker_scripts/ && \
     chmod -R 700 /rocker_scripts/ && \
-    ls -la /rocker_scripts/
+    ls -la /rocker_scripts/ \
 
-# Install R from source
-RUN bash /rocker_scripts/install_R_source.sh
-# Install java
-RUN bash /opt/scripts/install-java.sh
-# Setting up R with specific version
-RUN bash /rocker_scripts/setup_R.sh
-# Re-install system libs that may have been removed by autoremove in rocker scripts
-RUN bash /opt/scripts/install-system-libs.sh
-# Install additional system libs needed by R packages
-RUN bash /opt/scripts/install-system-libs-R.sh
-
-
-
-# Use RStudio's package manager to download packages as binaries
-ENV CRAN="https://packagemanager.posit.co/cran/__linux__/noble/latest"
-
-# Install R packages
-RUN R CMD javareconf -e && \
-    R -e "install.packages('tidyfst', repos='${CRAN}')" && \
-    R -e "install.packages('configr', dependencies=TRUE, repos='${CRAN}')" && \
-    R -e "install.packages('DBI', dependencies=TRUE, repos='${CRAN}')" && \
-    R -e "install.packages('renv', dependencies=TRUE, repos='${CRAN}')" && \
-    R -e "install.packages('arrow', dependencies=FALSE, repos='${CRAN}')" && \
-    R -e "install.packages('leaflet', dependencies=TRUE, repos='${CRAN}')" && \
-    R -e "install.packages('getPass', dependencies=TRUE, repos='${CRAN}')" && \
-    R -e "install.packages('DT', dependencies=TRUE, repos='${CRAN}')" && \
-    R -e "install.packages('rjwsacruncher', dependencies=TRUE, repos='${CRAN}')" && \
-    R -e "install.packages('sf', dependencies=TRUE, repos='${CRAN}')" && \
-    R -e "install.packages('sfarrow', dependencies=FALSE, repos='${CRAN}')" && \
-    R -e "install.packages('dbplyr', dependencies=FALSE, repos='${CRAN}')" && \
-    R -e "install.packages('shiny', dependencies=FALSE, repos='${CRAN}')" && \
-    R -e "install.packages('rstudioapi', dependencies=TRUE, repos='${CRAN}')" && \
-    R -e "install.packages('httr', dependencies=TRUE, repos='${CRAN}')" && \
-    R -e "install.packages('readr', dependencies=TRUE, repos='${CRAN}')" && \
-    R -e "install.packages('knitr', dependencies=TRUE, repos='${CRAN}')" && \
-    R -e "install.packages('rmarkdown', dependencies=TRUE, repos='${CRAN}')" && \
-    R -e "install.packages('Rcurl', dependencies=TRUE, repos='${CRAN}')" && \
-    R -e "install.packages('here', dependencies=TRUE, repos='${CRAN}')" && \
-    R -e "install.packages('esquisse', dependencies=TRUE, repos='${CRAN}')" && \
-    R -e "install.packages('dcmodify', dependencies=TRUE, repos='${CRAN}')" && \
-    R -e "install.packages('simputation', dependencies=TRUE, repos='${CRAN}')" && \
-    R -e "install.packages('SmallCountRounding', dependencies=TRUE, repos='${CRAN}')" && \
-    R -e "install.packages('klassR', dependencies=TRUE, repos='${CRAN}')" && \
-    R -e "install.packages('pxwebapidata', dependencies=TRUE, repos='${CRAN}')" && \
-    R -e "install.packages('gissb', dependencies=TRUE, repos='${CRAN}')" && \
-    R -e "install.packages('igraph', dependencies=TRUE, repos='${CRAN}')" && \
-    R -e "install.packages('dggridR', repos='${CRAN}')" && \
-    R -e "install.packages('remotes', repos='${CRAN}')" && \
-    R -e "remotes::install_github('statisticsnorway/ssb-pris')" && \
-    R -e "remotes::install_github('statisticsnorway/ssb-GaussSuppression')" && \
-    R -e "remotes::install_github('statisticsnorway/ssb-fellesr')" && \
-    R -e "remotes::install_github('statisticsnorway/ssb-kostra')" && \
-    R -e "remotes::install_github('statisticsnorway/ssb-SdcForetakPerson')" && \
-    R -e "remotes::install_github('statisticsnorway/ssb-struktuR')" && \
-    R -e "remotes::install_github('statisticsnorway/ssb-pxwebapidata')" && \
-    R -e "remotes::install_github('statisticsnorway/ssb-SSBtools')" && \
-    R -e "remotes::install_github('statisticsnorway/ssb-klassr')" && \
-    R -e "remotes::install_github('statisticsnorway/GISSB')" && \
-    R -e "remotes::install_github('statisticsnorway/ReGenesees')" && \
-    R -e "remotes::install_github('statisticsnorway/ssb-pickmdl')"
-
-
-# Install jwsacruncher
+# Copy jwsacruncher
 COPY ./jwsacruncher-2.2.4.zip /tmp/jwsacruncher-2.2.4.zip
-RUN unzip /tmp/jwsacruncher-2.2.4.zip -d /opt && rm -f /tmp/jwsacruncher-2.2.4.zip
-# Create a symlink at /usr/bin so users can call jwsacruncher from anywhere
-RUN ln -s /opt/jwsacruncher-2.2.4/bin/jwsacruncher /usr/bin/jwsacruncher
 
+# Install R from source and link jwsacruncher
+RUN /rocker_scripts/install_R_source.sh && \
+    # Install java \
+    /opt/scripts/install-java.sh && \
+    # Setting up R with specific version
+    /rocker_scripts/setup_R.sh && \
+    # Re-install system libs that may have been removed by autoremove in rocker scripts
+    /opt/scripts/install-system-libs.sh && \
+    # Install additional system libs needed by R packages
+    /opt/scripts/install-system-libs-R.sh && \
+    # Install R packages \
+    /opt/scripts/install-r-packages.sh && \
+    # install arrow
+    /opt/scripts/install-arrow.sh && \
+    # Install jwsacruncher
+    unzip /tmp/jwsacruncher-2.2.4.zip -d /opt && rm -f /tmp/jwsacruncher-2.2.4.zip && \
+    # Create symlink to jwsacruncher
+    ln -s /opt/jwsacruncher-2.2.4/bin/jwsacruncher /usr/bin/jwsacruncher && \
+    # Fix permissions
+    chown -R ${USERNAME}:${GROUPNAME} ${HOME} ${R_HOME}
 
-# Fix permissions
-RUN chown -R ${USERNAME}:${GROUPNAME} ${HOME} ${R_HOME}
-
-USER root
-
-# Downloading oracle instant-client components and saving to /tmp
-RUN curl -L https://download.oracle.com/otn_software/linux/instantclient/216000/oracle-instantclient-basic-21.6.0.0.0-1.x86_64.rpm -o /tmp/oracle-instantclient-basic-21.6.0.0.0-1.x86_64.rpm && \
-    curl -L https://download.oracle.com/otn_software/linux/instantclient/216000/oracle-instantclient-devel-21.6.0.0.0-1.x86_64.rpm -o /tmp/oracle-instantclient-devel-21.6.0.0.0-1.x86_64.rpm && \
-    curl -L https://download.oracle.com/otn_software/linux/instantclient/216000/oracle-instantclient-sqlplus-21.6.0.0.0-1.x86_64.rpm -o /tmp/oracle-instantclient-sqlplus-21.6.0.0.0-1.x86_64.rpm && \
-    curl -L https://download.oracle.com/otn_software/linux/instantclient/216000/oracle-instantclient-odbc-21.6.0.0.0-1.x86_64.rpm -o /tmp/oracle-instantclient-odbc-21.6.0.0.0-1.x86_64.rpm && \
-    curl -L https://download.oracle.com/otn_software/linux/instantclient/216000/oracle-instantclient-jdbc-21.6.0.0.0-1.x86_64.rpm -o /tmp/oracle-instantclient-jdbc-21.6.0.0.0-1.x86_64.rpm && \
-    curl -L https://download.oracle.com/otn_software/linux/instantclient/216000/oracle-instantclient-tools-21.6.0.0.0-1.x86_64.rpm -o /tmp/oracle-instantclient-tools-21.6.0.0.0-1.x86_64.rpm
-
-# Installing oracle-instantclient components using alien
-RUN alien -i /tmp/oracle-instantclient-basic-21.6.0.0.0-1.x86_64.rpm && \
-    alien -i /tmp/oracle-instantclient-devel-21.6.0.0.0-1.x86_64.rpm && \
-    alien -i /tmp/oracle-instantclient-odbc-21.6.0.0.0-1.x86_64.rpm && \
-    alien -i /tmp/oracle-instantclient-jdbc-21.6.0.0.0-1.x86_64.rpm && \
-    alien -i /tmp/oracle-instantclient-tools-21.6.0.0.0-1.x86_64.rpm && \
-    # Must install sqlplus seperately because of an issue installing using alien
-    cd /tmp && \
-    rpm2cpio /tmp/oracle-instantclient-sqlplus-21.6.0.0.0-1.x86_64.rpm | cpio -idmv && \
-    cp -r /tmp/usr/* /usr/ && \
-    rm -rf /tmp/usr && \
-    ldconfig && \
-    rm -rf /tmp/oracle-instantclient-*
-
-# add tnsnames.ora to oracle path
-RUN ln -s /ssb/share/etc/tnsnames.ora /usr/lib/oracle/21/client64/lib/network/tnsnames.ora
-
-# required to build ROracle
-ENV OCI_INC=/usr/include/oracle/21/client64
-ENV OCI_LIB=/usr/lib/oracle/21/client64/lib
-ENV ORACLE_HOME=/usr/lib/oracle/21/client64
-ENV TNS_ADMIN=/usr/lib/oracle/21/client64/lib/network
-ENV LD_LIBRARY_PATH=/usr/lib/oracle/21/client64/lib
-
+# ------------------------------------------------------------------------------
+# Python/Conda installation and configuration
+# ------------------------------------------------------------------------------
 ARG PYTHON_VERSION="311"
 ENV PYTHON_VERSION=${PYTHON_VERSION}
 
-USER root
+# Set template version for ssb-project-cli
+ENV STAT_TEMPLATE_DEFAULT_REFERENCE="1.5.1"
+ENV PYTHONPATH=/ssb/bruker/felles/pythonForSsb
+ENV FELLES=/ssb/bruker/felles
+
+# Set Dapla environment variables used to identify the service.
+ENV DAPLA_SERVICE=JUPYTERLAB
+ENV DAPLA_REGION=ON_PREM
 
 # Install additional system packages
- RUN apt-get update -y && \
+RUN apt-get update -y && \
      apt-get install -y --no-install-recommends \
      iputils-ping \
      build-essential \
      pandoc \
-#     libffi-dev \
-#     python3-dev \
-#     curl \
      && apt-get clean \
      && rm -rf /var/lib/apt/lists/*
 
 ARG CONDA_DIR=/opt/conda
 ENV CONDA_DIR=${CONDA_DIR}
+ENV PATH="${CONDA_DIR}/bin:${PATH}"
+
 # Install miniconda
 RUN curl -L https://repo.anaconda.com/miniconda/Miniconda3-py${PYTHON_VERSION}_24.4.0-0-Linux-x86_64.sh -o conda-python.sh && \
     chmod +x conda-python.sh && \
     ./conda-python.sh -b -p $CONDA_DIR && \
     rm -f conda-python.sh
 
-# Add conda to PATH
-ENV PATH="${CONDA_DIR}/bin:${PATH}"
-
-RUN sed -i "/^PATH=/c\PATH=$PATH" "$R_HOME/etc/Renviron.site"
-
-# Create and set permissions for user directories
-# RUN mkdir -p ${HOME}/.local/lib && \
-#     chown -R ${USERNAME}:${GROUPNAME} ${HOME}/.local
- 
+# Installs pipx, Quarto and texlive packages
 COPY ./requirements.txt /tmp/requirements.txt
-
-# Copy scripts
-COPY ./scripts /opt/scripts/
-RUN chmod +x -R /opt/scripts/
-RUN chown -R ${USERNAME}:${GROUPNAME} /opt/scripts/ 
-RUN chmod -R 700 /opt/scripts/
-
 RUN python -m pip install --user pipx && \
     python -m pipx ensurepath && \
+    # Install and configure pipx packages
+    pipx install nox && \
+    pipx install poetry && \
+    pipx install pre-commit && \
+    pipx inject nox nox-poetry && \
+    pipx inject poetry poetry-plugin-export && \
+    pipx inject poetry poetry-plugin-shell && \
     # Install Quarto latest version
     /opt/scripts/install-quarto.sh && \
-    chmod +x /opt/scripts/pipx_install_packages.sh && \
+    # Install TeX Live packages
+    /opt/scripts/install-texlive-packages.sh && \
+    # Install pipx packages listed in requirements.txt
     /opt/scripts/pipx_install_packages.sh
-
-RUN /opt/scripts/install-texlive-packages.sh
-
-# RUN mkdir -p /etc/jupyter
-# COPY jupyter_lab_config.py /etc/jupyter
 
 # Install Node.js (required for JupyterLab 4.x extensions)
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y nodejs && \
     node --version && npm --version
 
-# Install Python packages
+# Install jupyterlab and Python packages
 RUN /opt/scripts/install-jupyterlab.sh && \
-    # Install JupyterLab extensions
+    # Install pip packages and jupyter extentions
     python3 -m pip install --upgrade pip && \
     python3 -m pip install jupyterlab-git && \
     python3 -m pip install nbdime && \
-    python3 -m pip install jupyterhub &&\
-    echo "Installing Dapla tools.txt" && \
-    python3 -m pip install --no-cache-dir -r /tmp/requirements.txt && \
+    python3 -m pip install jupyterhub && \
     python3 -m pip install nbstripout && \
     python3 -m pip install jupyterlab-quarto && \
     python3 -m pip install jupytext && \
@@ -348,45 +247,16 @@ RUN /opt/scripts/install-jupyterlab.sh && \
     python3 -m pip install jupyter-resource-usage && \
     python3 -m pip install ipyparallel && \
     python3 -m pip install sympy mpmath && \
-    python3 -m pip install poetry && \
     python3 -m pip install sphinx sphinx-autodoc-defaultargs sphinx-autodoc-typehints sphinx-rtd-theme && \
     python3 -m pip install pytest pytest_tornasync pytest-cov pytest-mock pre-commit-hooks jupyterlab-code-formatter black[jupyter] isort && \
-    python3 -m pip install pyjstat xmltodict lxml holidays PyGithub pre-commit pyminizip rich openpyxl pyarrow python-dotenv poetry && \
-    python3 -m pip install pandas-gbq google-cloud-storage venv-pack nbdev && \
+    python3 -m pip install pyjstat xmltodict lxml holidays PyGithub pre-commit pyminizip rich openpyxl pyarrow python-dotenv && \
+    python3 -m pip install venv-pack nbdev && \
     python3 -m pip install cx-Oracle && \
     python3 -m pip install saspy && \
     python3 -m pip install ipydatagrid && \
-    python3 -m pip install pipx && \
-    # Dependencies for ssb-project-cli 
-    python3 -m pip install --no-cache-dir "click>=8.1,<9" && \
-    python3 -m pip install --no-cache-dir "typer>=0.9,<0.12" && \
-    # If R is installed, make its kernel available in Jupyter
-    if command -v R; then \
-    R -e "install.packages('IRkernel'); IRkernel::installspec()"; \
-    fi && \ 
+    python3 -m pip install dash && \
     python3 -m pip cache purge && \
     rm /tmp/requirements.txt
-
-# Install and configure pipx packages
-RUN pipx install nox && \
-    pipx install poetry && \
-    pipx install pre-commit && \
-    pipx inject nox nox-poetry && \
-    pipx inject poetry poetry-plugin-export && \
-    pipx inject poetry poetry-plugin-shell
-
-# Core JupyterLab extensions - compatible with JupyterLab 4.x
-# RUN python3 -m pip install --no-cache-dir --force-reinstall \
-#                            jupyterhub \
-#                            jupyterlab-git==0.44.0 \
-#                            nbdime==3.2.1 \
-#                            nbstripout \
-#                            papermill \
-#                            ipywidgets>=8.0.0 \
-#                            jupyter-server-proxy
-RUN pip install dash
-
-RUN jupyter labextension list
 
 # Install tiny labextension to open Hub Control Panel in same tab to fix sluggish terminal loading
 WORKDIR /opt/jupyter-ext/hub-control-panel-same-tab
@@ -410,30 +280,15 @@ RUN set -eux; \
 
 WORKDIR ${WORKSPACE_DIR}
 
-
-RUN jupyter lab --version
-
-# Set template version for ssb-project-cli
-ENV STAT_TEMPLATE_DEFAULT_REFERENCE="1.1.9"
-
 # Pull and update ca-certificates - use -p to avoid errors if directory exists
 RUN mkdir -p "/usr/local/bin/start-notebook.d" && \
     echo "curl https://nexus.ssb.no/repository/certificate_repo/ssb/cert_Decrypt-CA.crt --output /usr/local/share/ca-certificates/cert_Decrypt-CA.crt" > /usr/local/bin/start-notebook.d/update-certificate.sh && \
     echo "update-ca-certificates" >> /usr/local/bin/start-notebook.d/update-certificate.sh && \
     chmod +x /usr/local/bin/start-notebook.d/update-certificate.sh
 
-# Set Dapla environment variables used to identify the service.
-ENV DAPLA_SERVICE=JUPYTERLAB
-ENV DAPLA_REGION=ON_PREM
-
-# Set FELLES environment variable
-ENV FELLES=/ssb/bruker/felles
 ENV ARROW_THIRDPARTY_DEPENDENCY_DIR=$FELLES/R_pakker/arrow
 ENV ARROW_GCS=OFF
 ENV ARROW_S3=OFF
-
-# Fix PYTHONPATH environment variable
-ENV PYTHONPATH=/ssb/bruker/felles/pythonForSsb
 
 # Copy the kernels
 COPY ./kernels/ir /opt/conda/share/jupyter/kernels/ir/
@@ -446,9 +301,6 @@ RUN chmod +x /opt/conda/share/jupyter/kernels/ir/r.sh
 # trying to fix websockets issue and adding runtime dir inside of the container
 RUN mkdir -p /tmp/jupyter-runtime && chmod 1777 /tmp/jupyter-runtime
 
-# Remove duplicate Python lib
-# RUN rm /usr/bin/python3 && ln -s /opt/conda/bin/python3 /usr/bin/python3
-
 #Prevent installation of extentions, by removing write privilege in extension folders.
 RUN chmod u-w  /opt/conda/share/jupyter/labextensions
 RUN chmod u-w  /opt/conda/share/jupyter/nbextensions
@@ -456,7 +308,6 @@ RUN chmod u-w  /opt/conda/share/jupyter/lab/extensions
 
 
 # NSS/SSSD client (install after rocker scripts)
-USER root
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         libpam-sss \
@@ -464,8 +315,6 @@ RUN apt-get update && \
         sssd-common \
         sssd-tools \
         libnss3-tools \
-        xclip && \
-        gosu && \
     apt-mark manual libpam-sss libnss-sss sssd-common sssd-tools libnss3-tools || true && \
     sed -i 's/^passwd:.*/passwd:     files sss systemd/' /etc/nsswitch.conf && \
     sed -i 's/^group:.*/group:      files sss systemd/'  /etc/nsswitch.conf && \
@@ -474,20 +323,18 @@ RUN apt-get update && \
 
 # adding a custom bashrc with git branch in PS1
 COPY ./common-bashrc /etc/skel/.bashrc
-RUN install -d /usr/local/share/etc
+
 COPY ./common-bashrc /usr/local/share/etc/bashrc.felles
 
-# Replace system Rprofile.site with repo version
-RUN install -d /usr/local/lib/R/etc
-COPY ./Rprofile.site /usr/local/lib/R/etc/Rprofile.site
-RUN chown root:root /usr/local/lib/R/etc/Rprofile.site && chmod 0644 /usr/local/lib/R/etc/Rprofile.site
+# Change default R repo
+COPY Rprofile.site /etc/R/Rprofile.site
 
 # Create a symlink to the stamme_variabel file
 RUN ln -s /ssb/share/etc/stamme_variabel /etc/profile.d/stamme_variabel
 
 # Set up proxy configuration
 ENV https_proxy=http://proxy.ssb.no:3128
-ENV no_proxy=nexus.ssb.no,git-adm.ssb.no,i.test.ssb.no,i.ssb.no,i.qa.ssb.no,data.ssb.no,github.com,api.github.com,codeload.github.com
+ENV no_proxy=nexus.ssb.no,i.test.ssb.no,i.ssb.no,i.qa.ssb.no,data.ssb.no,github.com,api.github.com,codeload.github.com
 
 # Configure Python virtual environments
 ENV PIP_REQUIRE_VIRTUALENV=true
@@ -502,23 +349,5 @@ RUN pip config set global.index https://pypi.org/pypi --global && \
     pip config set global.index-url https://pypi.org/simple --global && \
     pip config set global.trusted-host pypi.org --global
 
-# Use proxy for https connections
-ENV https_proxy=http://proxy.ssb.no:3128
-ENV no_proxy=nexus.ssb.no,git-adm.ssb.no,i.test.ssb.no,i.ssb.no,i.qa.ssb.no,data.ssb.no,github.com,api.github.com,codeload.github.com
 
-# Configure npm to use proxy if needed
-ENV npm_config_proxy=http://proxy.ssb.no:3128
-ENV npm_config_https_proxy=http://proxy.ssb.no:3128
-ENV npm_config_registry=https://registry.npmjs.org/
-
-# Expose port
-EXPOSE 8888
-
-# Remove the custom startup script usage
-# Comment out or remove these lines:
-# COPY start-singleuser.sh /usr/local/bin/start-singleuser.sh
-# RUN chmod +x /usr/local/bin/start-singleuser.sh
-# CMD ["/usr/local/bin/start-singleuser.sh"]
-
-# Use the standard jupyterhub-singleuser command
-CMD ["jupyterhub-singleuser"]
+USER $NB_UID

@@ -20,9 +20,6 @@ c.PAMAuthenticator.open_sessions = False
 
 c.Authenticator.allow_all = True
 
-# Always pull the latest image
-c.DockerSpawner.pull_policy = "always"
-
 # Add admin users
 c.PAMAuthenticator.admin_groups = {"RBAG_jupyterhub_admins@ssb.no"}
 
