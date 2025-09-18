@@ -71,8 +71,6 @@ RUN apt-get update && \
     wget \
     bzip2 \
     ca-certificates \
-    sudo \
-    locales \
     fonts-liberation \
     run-one \
     curl \
