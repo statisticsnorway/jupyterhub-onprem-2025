@@ -96,8 +96,8 @@ RUN apt-get update && \
     libpoppler-cpp-dev \
     libv8-dev \
     libnode-dev \
-    chown -R ${USERNAME}:${GROUPNAME} ${HOME} \
     && apt-get clean \
+    && chown -R ${USERNAME}:${GROUPNAME} ${HOME} \
     && rm -rf /var/lib/apt/lists/*
 
 # ------------------------------------------------------------------------------
