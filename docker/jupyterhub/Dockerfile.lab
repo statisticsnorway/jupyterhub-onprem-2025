@@ -340,7 +340,7 @@ RUN pip config set global.index https://pypi.org/pypi --global && \
     pip config set global.index-url https://pypi.org/simple --global && \
     pip config set global.trusted-host pypi.org --global
 
-# Expose port
-EXPOSE 8888
+# Use the standard jupyterhub-singleuser command
+CMD ["jupyterhub-singleuser"]
 
 USER ${UID}
