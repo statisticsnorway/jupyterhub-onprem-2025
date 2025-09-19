@@ -24,7 +24,6 @@ apt_install \
     nano \
     openssh-client \
     python3-pip \
-    sudo \
     tini \
     unzip \
     vim \

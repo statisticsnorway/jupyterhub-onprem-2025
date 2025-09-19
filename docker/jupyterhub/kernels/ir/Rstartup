@@ -3,7 +3,7 @@
   .libPaths(c(file.path(home, "lib"), .libPaths()))
 
   r <- getOption("repos")
-  r["CRAN"] <- "https://nexus.ssb.no/repository/packagemanager-rstudio/"
+  r["CRAN"] <- "https://nexus.ssb.no/repository/packagemanager-rstudio-noble/"
   options(repos = r)
   rm(r)
 }
