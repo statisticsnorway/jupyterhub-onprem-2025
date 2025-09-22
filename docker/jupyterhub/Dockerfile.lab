@@ -219,6 +219,7 @@ RUN /opt/scripts/install-jupyterlab.sh && \
     python3 -m pip install nbstripout && \
     python3 -m pip install jupyterlab-quarto && \
     python3 -m pip install jupytext && \
+    python3 -m pip install click && \
     python3 -m pip install papermill && \
     python3 -m pip install ipywidgets && \
     python3 -m pip install jupyter-server-proxy && \
@@ -244,7 +245,6 @@ RUN /opt/scripts/install-jupyterlab.sh && \
     python3 -m pip install saspy && \
     python3 -m pip install ipydatagrid && \
     python3 -m pip install dash && \
-    python3 -m pip install click && \
     python3 -m pip install --requirement /tmp/requirements.txt && \
     python3 -m pip cache purge && \
     rm /tmp/requirements.txt
