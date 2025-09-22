@@ -187,17 +187,7 @@ RUN curl -L https://repo.anaconda.com/miniconda/Miniconda3-py${PYTHON_VERSION}_2
     rm -f conda-python.sh
 
 # Installs pipx, Quarto and texlive packages
-COPY ./requirements.txt /tmp/requirements.txt
-RUN python -m pip install --user pipx && \
-    python -m pipx ensurepath && \
-    # Install and configure pipx packages
-    pipx install nox && \
-    pipx install poetry && \
-    pipx install pre-commit && \
-    pipx inject nox nox-poetry && \
-    pipx inject poetry poetry-plugin-export && \
-    pipx inject poetry poetry-plugin-shell && \
-    # Install Quarto latest version
+COPY ./requirements.txt /tmp/requirements.txt    # Install Quarto latest version
     /opt/scripts/install-quarto.sh && \
     # Install TeX Live packages
     /opt/scripts/install-texlive-packages.sh && \
@@ -248,6 +238,16 @@ RUN /opt/scripts/install-jupyterlab.sh && \
     python3 -m pip install --requirement /tmp/requirements.txt && \
     python3 -m pip cache purge && \
     rm /tmp/requirements.txt
+
+RUN python -m pip install pipx && \
+# Install and configure pipx packages
+    pipx install nox && \
+    pipx install poetry && \
+    pipx install pre-commit && \
+    pipx inject nox nox-poetry && \
+    pipx inject poetry poetry-plugin-export && \
+    pipx inject poetry poetry-plugin-shell && \
+
 
 # Install tiny labextension to open Hub Control Panel in same tab to fix sluggish terminal loading
 WORKDIR /opt/jupyter-ext/hub-control-panel-same-tab
