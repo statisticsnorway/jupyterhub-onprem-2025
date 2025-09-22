@@ -188,7 +188,7 @@ RUN curl -L https://repo.anaconda.com/miniconda/Miniconda3-py${PYTHON_VERSION}_2
 
 # Installs pipx, Quarto and texlive packages
 COPY ./requirements.txt /tmp/requirements.txt    # Install Quarto latest version
-    /opt/scripts/install-quarto.sh && \
+RUN /opt/scripts/install-quarto.sh && \
     # Install TeX Live packages
     /opt/scripts/install-texlive-packages.sh && \
     # Install pipx packages listed in requirements.txt
