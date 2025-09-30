@@ -324,7 +324,6 @@ COPY Rprofile.site /etc/R/Rprofile.site
 RUN mkdir -p /usr/local/bin/before-notebook.d && \
   cat >/usr/local/bin/before-notebook.d/10-git-safe.sh <<'EOF'
 #!/usr/bin/env bash
-set -euo pipefail
 if ! git config --global --get-all safe.directory | grep -qx '\*'; then
   git config --global --add safe.directory '*'
 fi
