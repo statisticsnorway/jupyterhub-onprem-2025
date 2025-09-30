@@ -321,12 +321,29 @@ COPY ./common-bashrc /usr/local/share/etc/bashrc.felles
 # Change default R repo
 COPY Rprofile.site /etc/R/Rprofile.site
 
-# Install ssb_gitconfig.py script
-RUN wget -O /usr/local/bin/ssb_gitconfig.py https://raw.githubusercontent.com/statisticsnorway/kvakk-git-tools/main/kvakk_git_tools/ssb_gitconfig.py
-RUN chmod +x /usr/local/bin/ssb_gitconfig.py
+RUN mkdir -p /usr/local/bin/before-notebook.d && \
+  cat >/usr/local/bin/before-notebook.d/10-git-safe.sh <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+if ! git config --global --get-all safe.directory | grep -qx '\*'; then
+  git config --global --add safe.directory '*'
+fi
+EOF
+RUN chmod +x /usr/local/bin/before-notebook.d/10-git-safe.sh
 
-COPY ./check-git-config.bash /usr/local/bin/check-git-config.sh
-RUN chmod +x /usr/local/bin/check-git-config.sh
+# Run all hooks in /usr/local/bin/before-notebook.d at shell startup
+RUN cat >/etc/profile.d/10-before-notebook.sh <<'EOF'
+# Execute any *.sh hooks if present
+if [ -d /usr/local/bin/before-notebook.d ]; then
+  for f in /usr/local/bin/before-notebook.d/*.sh; do
+    [ -r "$f" ] && [ -x "$f" ] && . "$f"
+  done
+fi
+EOF
+RUN chmod +x /etc/profile.d/10-before-notebook.sh
+
+# (Optional but recommended) System-wide fallback so non-interactive git also trusts repos
+RUN git config --system --add safe.directory '*'
 
 # Create a symlink to the stamme_variabel file
 RUN ln -s /ssb/share/etc/stamme_variabel /etc/profile.d/stamme_variabel
