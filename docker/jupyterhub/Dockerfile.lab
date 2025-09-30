@@ -321,6 +321,12 @@ COPY ./common-bashrc /usr/local/share/etc/bashrc.felles
 # Change default R repo
 COPY Rprofile.site /etc/R/Rprofile.site
 
+# Install ssb_gitconfig.py script
+RUN wget -O /usr/local/bin/ssb_gitconfig.py https://raw.githubusercontent.com/statisticsnorway/kvakk-git-tools/main/kvakk_git_tools/ssb_gitconfig.py
+RUN chmod +x /usr/local/bin/ssb_gitconfig.py
+
+COPY ./check-git-config.bash /usr/local/bin/check-git-config.sh
+RUN chmod +x /usr/local/bin/check-git-config.sh
 
 # Create a symlink to the stamme_variabel file
 RUN ln -s /ssb/share/etc/stamme_variabel /etc/profile.d/stamme_variabel
