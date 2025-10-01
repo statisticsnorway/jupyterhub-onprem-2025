@@ -341,6 +341,9 @@ fi
 EOF
 RUN chmod +x /etc/profile.d/10-before-notebook.sh
 
+# Create a symlink to the python binary for kvakk-git-tools to work and detect the correct python version
+RUN ln -s /opt/conda/bin/python /usr/bin/python
+
 # (Optional but recommended) System-wide fallback so non-interactive git also trusts repos
 RUN git config --system --add safe.directory '*'
 
