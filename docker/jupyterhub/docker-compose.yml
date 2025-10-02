@@ -9,7 +9,6 @@ services:
     restart: always
     ports:
       - "443:443" # Expose HTTPS port
-      - "8080:8080" # Expose HTTP port
     volumes:
       # Mount docker socket to allow Hub to control Docker
       - /var/run/docker.sock:/var/run/docker.sock:rw
