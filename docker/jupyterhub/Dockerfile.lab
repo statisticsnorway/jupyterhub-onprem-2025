@@ -356,6 +356,10 @@ RUN ln -s /opt/conda/bin/python /usr/bin/python
 # (Optional but recommended) System-wide fallback so non-interactive git also trusts repos
 RUN git config --system --add safe.directory '*'
 
+# Set CRAN to the Nexus repository
+RUN unset CRAN
+ENV CRAN=https://nexus.ssb.no/repository/packagemanager-rstudio-noble/
+
 # Create a symlink to the stamme_variabel file
 RUN ln -s /ssb/share/etc/stamme_variabel /etc/profile.d/stamme_variabel
 
