@@ -341,6 +341,15 @@ fi
 EOF
 RUN chmod +x /etc/profile.d/10-before-notebook.sh
 
+# Install dependencies for rwrapr
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        libdeflate-dev \
+        liblzma-dev \
+        libreadline-dev && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
 # Create a symlink to the python binary for kvakk-git-tools to work and detect the correct python version
 RUN ln -s /opt/conda/bin/python /usr/bin/python
 
