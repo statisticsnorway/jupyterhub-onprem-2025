@@ -64,4 +64,17 @@ remotes::install_github("statisticsnorway/ReGenesees")
 remotes::install_github("statisticsnorway/ssb-pickmdl")
 RSCRIPT
 
+# Ensure IRkernel is installed and registered
+echo ">> Installing and registering IRkernel"
+Rscript --vanilla - <<'RSCRIPT'
+cran <- Sys.getenv("CRAN", unset = "https://cloud.r-project.org")
+if (!requireNamespace("IRkernel", quietly = TRUE)) {
+  install.packages("IRkernel", repos = cran, dependencies = TRUE)
+}
+# Register kernel spec in the conda share path used by our image
+try({
+  IRkernel::installspec(name = "ir", displayname = "R", user = FALSE)
+}, silent = TRUE)
+RSCRIPT
+
 echo ">> R package installation complete."
