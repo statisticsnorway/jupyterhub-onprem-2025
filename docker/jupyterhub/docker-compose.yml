@@ -23,8 +23,8 @@ services:
       - "${HOME}/secrets/ssl:/srv/jupyterhub/secrets"
 
         # Mounting SSSD directories for PAM authentication
-      - "/var/lib/sss:/var/lib/sss:rw,z"
-      - "/run/sssd:/run/sssd:rw,z"
+      - "/var/lib/sss:/var/lib/sss:ro,z"
+      - "/run/sssd:/run/sssd:ro,z"
       
       # # Mount PAM configuration (RHEL 9 host -> Ubuntu Noble container)
       # - "/etc/pam.d:/etc/pam.d:ro"
