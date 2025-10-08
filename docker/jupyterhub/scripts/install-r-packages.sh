@@ -43,6 +43,8 @@ ip("pxwebapidata",       deps = TRUE)
 ip("gissb",              deps = TRUE)
 ip("igraph",             deps = TRUE)
 ip("dggridR",            deps = TRUE)
+ip("languageserver",     deps = TRUE)
+ip("lintr",              deps = TRUE)
 
 # Ensure 'remotes' present for GitHub installs
 if (!requireNamespace("remotes", quietly = TRUE)) {
