@@ -94,7 +94,7 @@ RUN chmod +x /usr/local/bin/start-jupyterhub.sh
 RUN chown -R jupyterhub:jupyterhub /srv/jupyterhub /data
 
 # Expose JupyterHub port
-EXPOSE 8080 443
+EXPOSE 443
 
 # Switch to root for startup script (needed for database operations)
 USER root
