@@ -1,4 +1,4 @@
-ssb-project-cli==1.7.1
+ssb-project-cli==1.7.2
 nbstripout==0.8.1
 poetry==2.2.0
 cruft[pyproject]==2.16.0
