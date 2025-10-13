@@ -186,6 +186,9 @@ RUN curl -L https://repo.anaconda.com/miniconda/Miniconda3-py${PYTHON_VERSION}_2
     ./conda-python.sh -b -p $CONDA_DIR && \
     rm -f conda-python.sh
 
+# Set RETICULATE_PYTHON and RETICULATE_USE_UV so R can read from Python
+ENV RETICULATE_PYTHON=/opt/conda/bin/python
+ENV RETICULATE_USE_UV=0
 
 # Installs pipx, Quarto and texlive packages
 COPY ./requirements.txt /tmp/requirements.txt    

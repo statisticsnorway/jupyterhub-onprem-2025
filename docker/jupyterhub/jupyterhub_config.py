@@ -101,6 +101,8 @@ c.JupyterHub.port = 443
 c.JupyterHub.ssl_key = os.environ["SSL_KEY"]
 c.JupyterHub.ssl_cert = os.environ["SSL_CERT"]
 
+# Skip OAuth consent screen for single-user servers
+c.JupyterHub.oauth_no_confirm = True
 # ---------------------------
 # Disable browser caching for Hub pages/assets
 c.JupyterHub.extra_headers = {
