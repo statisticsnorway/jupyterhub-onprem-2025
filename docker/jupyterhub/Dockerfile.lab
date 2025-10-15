@@ -134,14 +134,25 @@ RUN mkdir -p /rocker_scripts && \
     chown -R ${USERNAME}:${GROUPNAME} /rocker_scripts/ && \
     chmod -R 700 /rocker_scripts/
 
-# Install R from source and link jwsacruncher
+# Install Oracle and R from source and link jwsacruncher
 RUN /rocker_scripts/install_R_source.sh && \
     /opt/scripts/install-java.sh && \
     /rocker_scripts/setup_R.sh && \
     /opt/scripts/install-system-libs.sh && \
     /opt/scripts/install-system-libs-R.sh && \
     /opt/scripts/install-oracle-instantclient.sh && \
-    /opt/scripts/install-r-packages.sh && \
+    chown -R ${USERNAME}:${GROUPNAME} ${HOME} ${R_HOME}
+
+# Setting up environment variables for Oracle so the ROracle package can be installed
+ENV OCI_INC=/usr/include/oracle/21/client64
+ENV OCI_LIB=/usr/lib/oracle/21/client64/lib
+ENV ORACLE_HOME=/usr/lib/oracle/21/client64
+ENV TNS_ADMIN=/usr/lib/oracle/21/client64/lib/network
+ENV LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/usr/lib/oracle/21/client64/lib
+
+
+
+RUN /opt/scripts/install-r-packages.sh && \
     /opt/scripts/install-arrow.sh && \
     chown -R ${USERNAME}:${GROUPNAME} ${HOME} ${R_HOME}
 
