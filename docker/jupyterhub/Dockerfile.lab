@@ -140,6 +140,7 @@ RUN /rocker_scripts/install_R_source.sh && \
     /rocker_scripts/setup_R.sh && \
     /opt/scripts/install-system-libs.sh && \
     /opt/scripts/install-system-libs-R.sh && \
+    /opt/scripts/install-oracle-instantclient.sh && \
     /opt/scripts/install-r-packages.sh && \
     /opt/scripts/install-arrow.sh && \
     chown -R ${USERNAME}:${GROUPNAME} ${HOME} ${R_HOME}
