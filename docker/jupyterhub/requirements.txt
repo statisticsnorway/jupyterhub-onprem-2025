@@ -2,5 +2,5 @@ ssb-project-cli==1.7.1
 nbstripout==0.8.1
 poetry==2.2.0
 cruft[pyproject]==2.16.0
-nox==2025.02.09
+nox==2025.10.16
 uv<=1.0.0
