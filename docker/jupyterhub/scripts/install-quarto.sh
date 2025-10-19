@@ -22,18 +22,21 @@ mkdir -p "$TINYTEX_DIR"
 # Use the stable GitHub URL (no expiring signed URL)
 curl -fsSL https://github.com/rstudio/tinytex-releases/releases/download/daily/TinyTeX-1.tar.gz -o /tmp/TinyTeX.tar.gz
 
-# Extract under /opt and normalize the directory name
-tar -xzf /tmp/TinyTeX.tar.gz -C /opt
+# Extract directly into /opt/TinyTeX, stripping the top-level directory name
+tar -xzf /tmp/TinyTeX.tar.gz -C "$TINYTEX_DIR" --strip-components=1
 rm -f /tmp/TinyTeX.tar.gz
-if [ ! -d /opt/TinyTeX ]; then
-  # the tar expands to TinyTeX or TinyTeX-<version>
-  mv /opt/TinyTeX* "$TINYTEX_DIR"
-fi
 chown -R root:root "$TINYTEX_DIR"
 
-# Create system-wide PATH symlinks and set mirror
-"$TINYTEX_DIR/bin/x86_64-linux/tlmgr" path add --system
+# Detect platform-specific bin dir (e.g., x86_64-linux) and configure tlmgr
+PLATFORM_DIR=$(ls -1 "$TINYTEX_DIR/bin" | head -n1)
+TLMGR_BIN="$TINYTEX_DIR/bin/$PLATFORM_DIR/tlmgr"
+if [ ! -x "$TLMGR_BIN" ]; then
+  echo "TinyTeX tlmgr not found at $TLMGR_BIN" >&2
+  exit 1
+fi
+
+# tlmgr 'path add' system-wide is unnecessary here and may not be supported; skip it
 
 # Make PATH available to login shells (runtime convenience)
-echo 'export PATH=/opt/TinyTeX/bin/x86_64-linux:$PATH' > /etc/profile.d/tinytex.sh
+echo "export PATH=$TINYTEX_DIR/bin/$PLATFORM_DIR:\$PATH" > /etc/profile.d/tinytex.sh
 chmod 0755 /etc/profile.d/tinytex.sh
