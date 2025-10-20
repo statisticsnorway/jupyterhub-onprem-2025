@@ -250,7 +250,7 @@ RUN /opt/scripts/install-jupyterlab.sh && \
     python3 -m pip install ipydatagrid && \
     python3 -m pip install dash && \
     python3 -m pip install --requirement /tmp/requirements.txt && \
-    python3 -m pip cache purge
+    python3 -m pip cache purge || true
 
 RUN python -m pip install pipx && \
 # Install and configure pipx packages
