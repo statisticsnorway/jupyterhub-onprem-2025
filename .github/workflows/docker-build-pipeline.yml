@@ -23,11 +23,11 @@ on:
       - "main"
     paths: 
       - 'docker/**'
-      - '.github/workflows/docker-build-image.yml'
+      - '.github/workflows/docker-build-pipeline.yml'
   pull_request:
     paths: 
       - 'docker/**'
-      - '.github/workflows/docker-build-image.yml'
+      - '.github/workflows/docker-build-pipeline.yml'
 
 env:
   REGISTRY: europe-north1-docker.pkg.dev/${{ secrets.GAR_PROJECT_ID }}
