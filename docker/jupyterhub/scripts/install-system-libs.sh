@@ -30,4 +30,5 @@ apt_install \
     alien \
     wget \
     tmux \
-    cmake
+    cmake \
+    libnsl2
