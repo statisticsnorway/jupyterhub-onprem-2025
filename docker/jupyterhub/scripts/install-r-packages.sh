@@ -50,7 +50,6 @@ ip("openxlsx",           deps = TRUE)
 ip("survey",             deps = TRUE)
 ip("eurostat",           deps = TRUE)
 ip("easySdcTable",       deps = TRUE)
-ip("ROracle",            deps = TRUE)
 
 # Ensure 'remotes' present for GitHub installs
 if (!requireNamespace("remotes", quietly = TRUE)) {
