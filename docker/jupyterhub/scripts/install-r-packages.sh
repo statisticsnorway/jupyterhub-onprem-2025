@@ -51,6 +51,12 @@ ip("survey",             deps = TRUE)
 ip("eurostat",           deps = TRUE)
 ip("easySdcTable",       deps = TRUE)
 
+# Install ROracle from local tarball if present
+local_pkg <- '/tmp/ROracle_1.4-1_R_x86_64-unknown-linux-gnu.tar.gz'
+if (file.exists(local_pkg)) {
+  install.packages(local_pkg, repos = NULL, type = 'source')
+}
+
 # Ensure 'remotes' present for GitHub installs
 if (!requireNamespace("remotes", quietly = TRUE)) {
   install.packages("remotes", repos = cran)

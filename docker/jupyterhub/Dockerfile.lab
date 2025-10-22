@@ -150,10 +150,11 @@ ENV ORACLE_HOME=/usr/lib/oracle/21/client64
 ENV TNS_ADMIN=/usr/lib/oracle/21/client64/lib/network
 ENV LD_LIBRARY_PATH="/usr/lib/oracle/21/client64/lib:${LD_LIBRARY_PATH}"
 
+# Copy the ROracle installation file into the container
+COPY ROracle_1.4-1_R_x86_64-unknown-linux-gnu.tar.gz /tmp/ROracle_1.4-1_R_x86_64-unknown-linux-gnu.tar.gz
 
 
 RUN /opt/scripts/install-r-packages.sh && \
-    /opt/scripts/install-roracle.sh && \
     /opt/scripts/install-arrow.sh && \
     chown -R ${USERNAME}:${GROUPNAME} ${HOME} ${R_HOME}
 
