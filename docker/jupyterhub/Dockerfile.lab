@@ -150,13 +150,15 @@ ENV ORACLE_HOME=/usr/lib/oracle/21/client64
 ENV TNS_ADMIN=/usr/lib/oracle/21/client64/lib/network
 ENV LD_LIBRARY_PATH="/usr/lib/oracle/21/client64/lib:${LD_LIBRARY_PATH}"
 
-# Copy the ROracle installation file into the container
+# Copy the ROracle installation file into the container and link libaio.so.1
 COPY ROracle_1.4-1_R_x86_64-unknown-linux-gnu.tar.gz /tmp/ROracle_1.4-1_R_x86_64-unknown-linux-gnu.tar.gz
-
+RUN ln -sf /lib/x86_64-linux-gnu/libaio.so.1t64 /lib/x86_64-linux-gnu/libaio.so.1 && \
+    ldconfig
 
 RUN /opt/scripts/install-r-packages.sh && \
     /opt/scripts/install-arrow.sh && \
-    chown -R ${USERNAME}:${GROUPNAME} ${HOME} ${R_HOME}
+    chown -R ${USERNAME}:${GROUPNAME} ${HOME} ${R_HOME} && \
+    rm -f /tmp/ROracle_1.4-1_R_x86_64-unknown-linux-gnu.tar.gz
 
 # Install jwsacruncher
 COPY ./jwsacruncher-2.2.4.zip /tmp/jwsacruncher-2.2.4.zip
