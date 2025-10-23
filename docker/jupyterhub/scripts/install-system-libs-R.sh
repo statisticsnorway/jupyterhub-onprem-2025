@@ -15,4 +15,6 @@ apt_install \
     libpq-dev \
     libzmq3-dev \
     libgit2-dev \
-    libfontconfig1-dev
+    libfontconfig1-dev \
+    libglpk-dev \
+    libgmp-dev
