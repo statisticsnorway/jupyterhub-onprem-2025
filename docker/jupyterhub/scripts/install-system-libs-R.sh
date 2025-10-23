@@ -14,4 +14,5 @@ apt_install \
     libglpk40 \
     libpq-dev \
     libzmq3-dev \
-    libgit2-dev
+    libgit2-dev \
+    libfontconfig1-dev
