@@ -23,4 +23,6 @@ apt_install \
     libgdal-dev \
     libproj-dev \
     libgeos-dev \
+    libnode-dev \
+    unixodbc-dev \
     gdal-bin
