@@ -19,4 +19,8 @@ apt_install \
     libglpk-dev \
     libgmp-dev \
     libharfbuzz-dev \
-    libfribidi-dev
+    libfribidi-dev \
+    libgdal-dev \
+    libproj-dev \
+    libgeos-dev \
+    gdal-bin
