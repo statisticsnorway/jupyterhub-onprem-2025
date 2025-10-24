@@ -17,4 +17,6 @@ apt_install \
     libgit2-dev \
     libfontconfig1-dev \
     libglpk-dev \
-    libgmp-dev
+    libgmp-dev \
+    libharfbuzz-dev \
+    libfribidi-dev
