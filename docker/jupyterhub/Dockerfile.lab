@@ -415,6 +415,5 @@ EOF
 
 RUN chmod 0755 /usr/local/sbin/entrypoint-run-pre.sh
 ENTRYPOINT ["/usr/local/sbin/entrypoint-run-pre.sh"]
-CMD ["jupyterhub-singleuser"]
 
 USER ${UID}
