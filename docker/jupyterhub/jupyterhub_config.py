@@ -62,6 +62,7 @@ c.DockerSpawner.volumes = {
     "/ssb": "/ssb",
     "/var/lib/sss/pipes": {"bind": "/var/lib/sss/pipes", "mode": "ro,Z"},
     "/var/lib/sss/mc":    {"bind": "/var/lib/sss/mc",    "mode": "rw,Z"},
+    "/usr/local/share/ca-certificates/cert_Decrypt-CA.crt": {"bind": "/usr/local/share/ca-certificates/cert_Decrypt-CA.crt", "mode": "ro,Z"},
 }
 # host_homedir_format_string must be set to map /ssb/bruker/{username} to /home/{username}
 c.SystemUserSpawner.host_homedir_format_string = "/ssb/bruker/{username}"

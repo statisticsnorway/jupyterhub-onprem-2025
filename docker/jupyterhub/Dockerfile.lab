@@ -42,7 +42,7 @@ RUN apt-get update && apt-get install -y locales \
     && update-locale LANG=nb_NO.UTF-8
 
 # Make sudo passwordless
-RUN echo '${USERNAME} ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+# RUN echo '${USERNAME} ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
 
 # Set up PATH
 ENV PATH="${PATH}:${HOME}/.local/bin:${HOME}/.krew/bin:${HOME}/work/.local/pipx/bin"
@@ -293,7 +293,6 @@ WORKDIR ${WORKSPACE_DIR}
 
 # Pull and update ca-certificates - use -p to avoid errors if directory exists
 RUN mkdir -p "/usr/local/bin/start-notebook.d" && \
-    echo "curl https://nexus.ssb.no/repository/certificate_repo/ssb/cert_Decrypt-CA.crt --output /usr/local/share/ca-certificates/cert_Decrypt-CA.crt" > /usr/local/bin/start-notebook.d/update-certificate.sh && \
     echo "update-ca-certificates" >> /usr/local/bin/start-notebook.d/update-certificate.sh && \
     chmod +x /usr/local/bin/start-notebook.d/update-certificate.sh
 
@@ -399,7 +398,23 @@ RUN pip config set global.index https://pypi.org/pypi --global && \
     pip config set global.index-url https://pypi.org/simple --global && \
     pip config set global.trusted-host pypi.org --global
 
-# Use the standard jupyterhub-singleuser command
+RUN cat >/usr/local/sbin/entrypoint-run-pre.sh <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Run root-only pre-step
+[ -x /usr/local/bin/update-certificate.sh ] && /usr/local/bin/update-certificate.sh || true
+    
+# Determine PAM user injected by Hub
+TARGET_USER="${JUPYTERHUB_USER:-${USERNAME:-$(id -un)}}"
+id -u "$TARGET_USER" >/dev/null 2>&1 || { echo "No such user $TARGET_USER"; exit 1; }
+    
+# Start server as that user, preserving Hub args
+exec su -s /bin/bash -c 'exec jupyterhub-singleuser "$@"' "$TARGET_USER" -- "$@"
+EOF
+
+RUN chmod 0755 /usr/local/sbin/entrypoint-run-pre.sh
+ENTRYPOINT ["/usr/local/sbin/entrypoint-run-pre.sh"]
 CMD ["jupyterhub-singleuser"]
 
 USER ${UID}

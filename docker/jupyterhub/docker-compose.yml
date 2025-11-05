@@ -26,16 +26,9 @@ services:
       - "/var/lib/sss:/var/lib/sss:ro,z"
       - "/run/sssd:/run/sssd:ro,z"
       
-      # # Mount PAM configuration (RHEL 9 host -> Ubuntu Noble container)
-      # - "/etc/pam.d:/etc/pam.d:ro"
-      # - "/etc/nsswitch.conf:/etc/nsswitch.conf:ro"
-      # - "/etc/sssd:/etc/sssd:ro"
-      
-      # # Additional RHEL 9 specific mounts for SSSD/PAM compatibility
-      # - "/etc/passwd:/etc/passwd:ro"
-      # - "/etc/group:/etc/group:ro"
-      # - "/etc/shadow:/etc/shadow:ro"
-      
+      # mounting ca-trust certificates anchors to ubuntu noble container
+      - "/etc/pki/ca-trust/source/anchors/cert_Decrypt-CA.crt:/usr/local/share/ca-certificates/cert_Decrypt-CA.crt:ro"
+
       # Docker configuration for spawning containers
       - "/home/jupyterhub/.docker:/root/.docker:ro"
 
