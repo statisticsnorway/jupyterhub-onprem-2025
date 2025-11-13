@@ -185,12 +185,12 @@ ENV DAPLA_REGION=ON_PREM
 
 # Install additional system packages
 RUN apt-get update -y && \
-     apt-get install -y --no-install-recommends \
-     iputils-ping \
-     build-essential \
-     pandoc \
-     && apt-get clean \
-     && rm -rf /var/lib/apt/lists/*
+    apt-get install -y --no-install-recommends \
+    iputils-ping \
+    build-essential \
+    pandoc \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 ARG CONDA_DIR=/opt/conda
 ENV CONDA_DIR=${CONDA_DIR}
@@ -257,7 +257,7 @@ RUN /opt/scripts/install-jupyterlab.sh && \
     python3 -m pip cache purge || true
 
 RUN python -m pip install pipx && \
-# Install and configure pipx packages
+    # Install and configure pipx packages
     pipx install nox && \
     pipx install poetry && \
     pipx install pre-commit && \
@@ -320,11 +320,11 @@ RUN chmod u-w  /opt/conda/share/jupyter/lab/extensions
 # NSS/SSSD client (install after rocker scripts)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        libpam-sss \
-        libnss-sss \
-        sssd-common \
-        sssd-tools \
-        libnss3-tools && \
+    libpam-sss \
+    libnss-sss \
+    sssd-common \
+    sssd-tools \
+    libnss3-tools && \
     apt-mark manual libpam-sss libnss-sss sssd-common sssd-tools libnss3-tools || true && \
     sed -i 's/^passwd:.*/passwd:     files sss systemd/' /etc/nsswitch.conf && \
     sed -i 's/^group:.*/group:      files sss systemd/'  /etc/nsswitch.conf && \
@@ -340,7 +340,7 @@ COPY ./common-bashrc /usr/local/share/etc/bashrc.felles
 COPY Rprofile.site /etc/R/Rprofile.site
 
 RUN mkdir -p /usr/local/bin/before-notebook.d && \
-  cat >/usr/local/bin/before-notebook.d/10-git-safe.sh <<'EOF'
+    cat >/usr/local/bin/before-notebook.d/10-git-safe.sh <<'EOF'
 #!/usr/bin/env bash
 if ! git config --global --get-all safe.directory | grep -qx '\*'; then
   git config --global --add safe.directory '*'
@@ -362,9 +362,9 @@ RUN chmod +x /etc/profile.d/10-before-notebook.sh
 # Install dependencies for rwrapr
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        libdeflate-dev \
-        liblzma-dev \
-        libreadline-dev && \
+    libdeflate-dev \
+    liblzma-dev \
+    libreadline-dev && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -415,5 +415,8 @@ EOF
 
 RUN chmod 0755 /usr/local/sbin/entrypoint-run-pre.sh
 ENTRYPOINT ["/usr/local/sbin/entrypoint-run-pre.sh"]
+
+# Add default CMD for DockerSpawner compatibility
+CMD ["jupyterhub-singleuser"]
 
 USER ${UID}
