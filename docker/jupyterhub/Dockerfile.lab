@@ -60,7 +60,8 @@ RUN mkdir /etc/skel/.config && \
     chmod +x /usr/local/bin/before-notebook.d/sync-skel.sh
 
 # Allow members of the primary user group to refresh CA store without password
-RUN echo "%${GROUPNAME} ALL=(root) NOPASSWD:/usr/sbin/update-ca-certificates" \
+RUN install -d -m 0750 /etc/sudoers.d && \
+    echo "%${GROUPNAME} ALL=(root) NOPASSWD:/usr/sbin/update-ca-certificates" \
     > /etc/sudoers.d/update-ca-certificates && \
     chmod 0440 /etc/sudoers.d/update-ca-certificates
 
