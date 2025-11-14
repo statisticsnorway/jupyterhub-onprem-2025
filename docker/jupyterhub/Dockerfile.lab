@@ -149,12 +149,17 @@ RUN curl -L https://repo.anaconda.com/miniconda/Miniconda3-py${PYTHON_VERSION}_2
     rm -f conda-python.sh
 
 # Pin traitlets BEFORE jupyterlab to avoid jupyter_server TypeError with traitlets >= 5.14
+# Use specific version to ensure it's not upgraded
 RUN python3 -m pip install --upgrade pip && \
-    python3 -m pip install --no-cache-dir "traitlets<5.14"
+    python3 -m pip install --no-cache-dir "traitlets==5.13.0"
+
+# Create constraints file to prevent traitlets from being upgraded
+RUN echo "traitlets==5.13.0" > /tmp/traitlets-constraint.txt
 
 # Install jupyterlab and Python packages
 # Note: install-jupyterlab.sh is commented out, installing jupyterlab directly here
-RUN python3 -m pip install --no-cache-dir jupyterlab && \
+# Use --constraint to prevent traitlets upgrade
+RUN python3 -m pip install --no-cache-dir --constraint /tmp/traitlets-constraint.txt jupyterlab && \
     # Install pip packages and jupyter extentions
     python3 -m pip install --upgrade pip && \
     python3 -m pip install jupyterlab-git && \
@@ -192,9 +197,10 @@ RUN python3 -m pip install --no-cache-dir jupyterlab && \
     python3 -m pip install --requirement /tmp/requirements.txt && \
     python3 -m pip cache purge || true
 
-# Force reinstall traitlets to ensure it's < 5.14 (in case jupyterlab upgraded it)
-RUN python3 -m pip install --no-cache-dir --force-reinstall "traitlets<5.14" && \
-    python3 -m pip install --no-cache-dir --force-reinstall "jupyter-server<2.14.0"
+# Force reinstall traitlets to ensure it's exactly 5.13.0 (in case jupyterlab upgraded it)
+RUN python3 -m pip install --no-cache-dir --force-reinstall --no-deps "traitlets==5.13.0" && \
+    python3 -m pip check && \
+    python3 -c "import traitlets; assert traitlets.__version__.startswith('5.13'), f'traitlets version {traitlets.__version__} is not 5.13.x'; print(f'traitlets version verified: {traitlets.__version__}')"
 
 # Update CA certificates via start-notebook.d hook similar to docker-stacks
 RUN mkdir -p /usr/local/bin/start-notebook.d && \
