@@ -436,6 +436,13 @@ run_hooks() {
 }
 
 run_hooks "/usr/local/bin/start-notebook.d"
+
+# Determine PAM user injected by Hub
+TARGET_USER="${JUPYTERHUB_USER:-${USERNAME:-$(id -un)}}"
+id -u "$TARGET_USER" >/dev/null 2>&1 || { echo "No such user $TARGET_USER"; exit 1; }
+
+# Start server as that user, preserving Hub args
+exec su -s /bin/bash -c 'exec jupyterhub-singleuser "$@"' "$TARGET_USER" -- "$@"
 EOF
 
 RUN chmod 0755 /usr/local/sbin/entrypoint-run-pre.sh
