@@ -154,7 +154,8 @@ RUN python3 -m pip install --no-cache-dir --upgrade pip && \
         jupyterhub \
         jupyterlab-git \
         jupyterlab_server \
-        notebook
+        notebook \
+        "traitlets<5.14"
 
 WORKDIR ${WORKSPACE_DIR}
 
