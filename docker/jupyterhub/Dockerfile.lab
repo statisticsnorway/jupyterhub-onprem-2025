@@ -59,11 +59,15 @@ RUN mkdir /etc/skel/.config && \
     > /usr/local/bin/before-notebook.d/sync-skel.sh && \
     chmod +x /usr/local/bin/before-notebook.d/sync-skel.sh
 
-# Allow members of the primary user group to refresh CA store without password
+# Allow any system user to refresh CA store without password
 RUN install -d -m 0750 /etc/sudoers.d && \
-    echo "%${GROUPNAME} ALL=(root) NOPASSWD:/usr/sbin/update-ca-certificates" \
-    > /etc/sudoers.d/update-ca-certificates && \
+    cat <<'EOF' > /etc/sudoers.d/update-ca-certificates && \
     chmod 0440 /etc/sudoers.d/update-ca-certificates
+Cmnd_Alias CA_UPDATE=/usr/sbin/update-ca-certificates
+Cmnd_Alias CA_INSTALL=/usr/bin/install
+Cmnd_Alias CA_MKDIR=/usr/bin/mkdir
+ALL ALL=(root) NOPASSWD: CA_UPDATE, CA_INSTALL, CA_MKDIR
+EOF
 
 COPY ./common-pycodestyle /etc/skel/.config/pycodestyle
 
@@ -179,8 +183,8 @@ else
     fi
     tmpfile="$(mktemp)"
     curl -fsSL "$CERT_URL" -o "$tmpfile"
-    sudo mkdir -p "$CERT_DEST_DIR"
-    sudo install -m 0644 "$tmpfile" "$CERT_DEST"
+    sudo -n mkdir -p "$CERT_DEST_DIR"
+    sudo -n install -m 0644 "$tmpfile" "$CERT_DEST"
     rm -f "$tmpfile"
   fi
 fi
@@ -200,7 +204,7 @@ if [ "$(id -u)" -eq 0 ]; then
 else
   if command -v sudo >/dev/null 2>&1; then
     echo "start-notebook.d: elevating via sudo to refresh CA store"
-    sudo "$UPDATE_CA_BIN"
+    sudo -n "$UPDATE_CA_BIN"
   else
     echo "start-notebook.d: cannot run update-ca-certificates (sudo missing)"
   fi
