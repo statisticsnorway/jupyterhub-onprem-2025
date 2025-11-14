@@ -187,6 +187,9 @@ RUN /opt/scripts/install-jupyterlab.sh && \
     python3 -m pip install --requirement /tmp/requirements.txt && \
     python3 -m pip cache purge || true
 
+# Pin traitlets to avoid jupyter_server TypeError with traitlets >= 5.14
+RUN python3 -m pip install --no-cache-dir "traitlets<5.14" "jupyter-server<2.14.0"
+
 # Update CA certificates via start-notebook.d hook similar to docker-stacks
 RUN mkdir -p /usr/local/bin/start-notebook.d && \
     cat >/usr/local/bin/start-notebook.d/00-update-ca-certificates.sh <<'EOF' && \
