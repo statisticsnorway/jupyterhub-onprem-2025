@@ -317,6 +317,7 @@ run_hooks "/usr/local/bin/start-notebook.d"
 # Determine PAM user injected by Hub
 TARGET_USER="${JUPYTERHUB_USER:-${USERNAME:-$(id -un)}}"
 id -u "$TARGET_USER" >/dev/null 2>&1 || { echo "No such user $TARGET_USER"; exit 1; }
+CURRENT_USER="$(id -un)"
 
 run_user_hooks() {
   local hook_dir="$1"
@@ -326,15 +327,27 @@ run_user_hooks() {
       case "$hook" in
         *.sh)
           echo "Running before-notebook hook (sh): $hook"
-          su --preserve-environment -s /bin/bash "$TARGET_USER" -c ". \"$hook\""
+          if [ "$CURRENT_USER" = "$TARGET_USER" ]; then
+            /bin/bash -c ". \"$hook\""
+          else
+            su --preserve-environment -s /bin/bash "$TARGET_USER" -c ". \"$hook\""
+          fi
           ;;
         *.py)
           echo "Running before-notebook hook (py): $hook"
-          su --preserve-environment -s /bin/bash "$TARGET_USER" -c "python3 \"$hook\""
+          if [ "$CURRENT_USER" = "$TARGET_USER" ]; then
+            python3 "$hook"
+          else
+            su --preserve-environment -s /bin/bash "$TARGET_USER" -c "python3 \"$hook\""
+          fi
           ;;
         *)
           echo "Running before-notebook hook (exec): $hook"
-          su --preserve-environment -s /bin/bash "$TARGET_USER" -c "\"$hook\""
+          if [ "$CURRENT_USER" = "$TARGET_USER" ]; then
+            "$hook"
+          else
+            su --preserve-environment -s /bin/bash "$TARGET_USER" -c "\"$hook\""
+          fi
           ;;
       esac
     done
@@ -344,7 +357,11 @@ run_user_hooks() {
 run_user_hooks "/usr/local/bin/before-notebook.d"
 
 # Start server as that user, preserving Hub args
-exec su -s /bin/bash -c 'exec jupyterhub-singleuser "$@"' "$TARGET_USER" -- "$@"
+if [ "$CURRENT_USER" = "$TARGET_USER" ]; then
+  exec jupyterhub-singleuser "$@"
+else
+  exec su -s /bin/bash -c 'exec jupyterhub-singleuser "$@"' "$TARGET_USER" -- "$@"
+fi
 EOF
 
 RUN chmod 0755 /usr/local/sbin/entrypoint-run-pre.sh
