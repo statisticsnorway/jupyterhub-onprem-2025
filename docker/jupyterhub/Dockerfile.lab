@@ -153,7 +153,8 @@ RUN python3 -m pip install --upgrade pip && \
     python3 -m pip install --no-cache-dir "traitlets<5.14"
 
 # Install jupyterlab and Python packages
-RUN /opt/scripts/install-jupyterlab.sh && \
+# Note: install-jupyterlab.sh is commented out, installing jupyterlab directly here
+RUN python3 -m pip install --no-cache-dir jupyterlab && \
     # Install pip packages and jupyter extentions
     python3 -m pip install --upgrade pip && \
     python3 -m pip install jupyterlab-git && \
