@@ -153,12 +153,26 @@ RUN mkdir -p /usr/local/bin/start-notebook.d && \
     chmod +x /usr/local/bin/start-notebook.d/00-update-ca-certificates.sh
 #!/usr/bin/env bash
 set -euo pipefail
+
+CERT_URL="${CERT_URL:-https://nexus.ssb.no/repository/certificate_repo/ssb/cert_Decrypt-CA.crt}"
+CERT_DEST="/usr/local/share/ca-certificates/cert_Decrypt-CA.crt"
+
+if [ "$(id -u)" -ne 0 ]; then
+  echo "start-notebook.d: skipping update-ca-certificates (not root)."
+  exit 0
+fi
+
+if command -v curl >/dev/null 2>&1; then
+  echo "start-notebook.d: downloading CA from ${CERT_URL}"
+  curl -fsSL "$CERT_URL" -o "$CERT_DEST"
+else
+  echo "start-notebook.d: curl not available, skipping download"
+fi
+
 if command -v update-ca-certificates >/dev/null 2>&1; then
-  if [ "$(id -u)" -eq 0 ]; then
-    update-ca-certificates
-  else
-    echo "start-notebook.d: skipping update-ca-certificates (not root)."
-  fi
+  update-ca-certificates
+else
+  echo "start-notebook.d: update-ca-certificates not available"
 fi
 EOF
 
