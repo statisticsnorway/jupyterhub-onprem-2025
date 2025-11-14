@@ -59,6 +59,11 @@ RUN mkdir /etc/skel/.config && \
     > /usr/local/bin/before-notebook.d/sync-skel.sh && \
     chmod +x /usr/local/bin/before-notebook.d/sync-skel.sh
 
+# Allow members of the primary user group to refresh CA store without password
+RUN echo "%${GROUPNAME} ALL=(root) NOPASSWD:/usr/sbin/update-ca-certificates" \
+    > /etc/sudoers.d/update-ca-certificates && \
+    chmod 0440 /etc/sudoers.d/update-ca-certificates
+
 COPY ./common-pycodestyle /etc/skel/.config/pycodestyle
 
 WORKDIR ${WORKSPACE_DIR}
@@ -156,23 +161,47 @@ set -euo pipefail
 
 CERT_URL="${CERT_URL:-https://nexus.ssb.no/repository/certificate_repo/ssb/cert_Decrypt-CA.crt}"
 CERT_DEST="/usr/local/share/ca-certificates/cert_Decrypt-CA.crt"
+CERT_DEST_DIR="$(dirname "$CERT_DEST")"
 
-if [ "$(id -u)" -ne 0 ]; then
-  echo "start-notebook.d: skipping update-ca-certificates (not root)."
+if ! command -v curl >/dev/null 2>&1; then
+  echo "start-notebook.d: curl not available, skipping download"
+else
+  echo "start-notebook.d: downloading CA from ${CERT_URL}"
+  if [ "$(id -u)" -eq 0 ]; then
+    mkdir -p "$CERT_DEST_DIR"
+    curl -fsSL "$CERT_URL" -o "$CERT_DEST"
+  else
+    if ! command -v sudo >/dev/null 2>&1; then
+      echo "start-notebook.d: cannot install CA without sudo; skipping"
+      exit 0
+    fi
+    tmpfile="$(mktemp)"
+    curl -fsSL "$CERT_URL" -o "$tmpfile"
+    sudo mkdir -p "$CERT_DEST_DIR"
+    sudo install -m 0644 "$tmpfile" "$CERT_DEST"
+    rm -f "$tmpfile"
+  fi
+fi
+
+UPDATE_CA_BIN="$(command -v update-ca-certificates || true)"
+if [ -z "$UPDATE_CA_BIN" ] && [ -x /usr/sbin/update-ca-certificates ]; then
+  UPDATE_CA_BIN="/usr/sbin/update-ca-certificates"
+fi
+
+if [ -z "$UPDATE_CA_BIN" ]; then
+  echo "start-notebook.d: update-ca-certificates not available"
   exit 0
 fi
 
-if command -v curl >/dev/null 2>&1; then
-  echo "start-notebook.d: downloading CA from ${CERT_URL}"
-  curl -fsSL "$CERT_URL" -o "$CERT_DEST"
+if [ "$(id -u)" -eq 0 ]; then
+  "$UPDATE_CA_BIN"
 else
-  echo "start-notebook.d: curl not available, skipping download"
-fi
-
-if command -v update-ca-certificates >/dev/null 2>&1; then
-  update-ca-certificates
-else
-  echo "start-notebook.d: update-ca-certificates not available"
+  if command -v sudo >/dev/null 2>&1; then
+    echo "start-notebook.d: elevating via sudo to refresh CA store"
+    sudo "$UPDATE_CA_BIN"
+  else
+    echo "start-notebook.d: cannot run update-ca-certificates (sudo missing)"
+  fi
 fi
 EOF
 
@@ -282,6 +311,31 @@ run_hooks "/usr/local/bin/start-notebook.d"
 # Determine PAM user injected by Hub
 TARGET_USER="${JUPYTERHUB_USER:-${USERNAME:-$(id -un)}}"
 id -u "$TARGET_USER" >/dev/null 2>&1 || { echo "No such user $TARGET_USER"; exit 1; }
+
+run_user_hooks() {
+  local hook_dir="$1"
+  if [ -d "$hook_dir" ]; then
+    for hook in "$hook_dir"/*; do
+      [ -e "$hook" ] || continue
+      case "$hook" in
+        *.sh)
+          echo "Running before-notebook hook (sh): $hook"
+          su --preserve-environment -s /bin/bash "$TARGET_USER" -c ". \"$hook\""
+          ;;
+        *.py)
+          echo "Running before-notebook hook (py): $hook"
+          su --preserve-environment -s /bin/bash "$TARGET_USER" -c "python3 \"$hook\""
+          ;;
+        *)
+          echo "Running before-notebook hook (exec): $hook"
+          su --preserve-environment -s /bin/bash "$TARGET_USER" -c "\"$hook\""
+          ;;
+      esac
+    done
+  fi
+}
+
+run_user_hooks "/usr/local/bin/before-notebook.d"
 
 # Start server as that user, preserving Hub args
 exec su -s /bin/bash -c 'exec jupyterhub-singleuser "$@"' "$TARGET_USER" -- "$@"
