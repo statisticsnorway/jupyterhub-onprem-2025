@@ -78,6 +78,7 @@ RUN apt-get update && \
     bzip2 \
     ca-certificates \
     fonts-liberation \
+    sudo \
     run-one \
     curl \
     git \
