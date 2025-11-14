@@ -291,20 +291,10 @@ RUN set -eux; \
 
 WORKDIR ${WORKSPACE_DIR}
 
-# Update CA certificates via start-notebook.d hook similar to docker-stacks
-RUN mkdir -p /usr/local/bin/start-notebook.d && \
-    cat >/usr/local/bin/start-notebook.d/00-update-ca-certificates.sh <<'EOF' && \
-    chmod +x /usr/local/bin/start-notebook.d/00-update-ca-certificates.sh
-#!/usr/bin/env bash
-set -euo pipefail
-if command -v update-ca-certificates >/dev/null 2>&1; then
-  if [ "$(id -u)" -eq 0 ]; then
-    update-ca-certificates
-  else
-    echo "start-notebook.d: skipping update-ca-certificates (not root)."
-  fi
-fi
-EOF
+# Pull and update ca-certificates - use -p to avoid errors if directory exists
+RUN mkdir -p "/usr/local/bin/start-notebook.d" && \
+    echo "update-ca-certificates" >> /usr/local/bin/start-notebook.d/update-certificate.sh && \
+    chmod +x /usr/local/bin/start-notebook.d/update-certificate.sh
 
 ENV ARROW_THIRDPARTY_DEPENDENCY_DIR=$FELLES/R_pakker/arrow
 ENV ARROW_GCS=OFF
@@ -408,37 +398,6 @@ RUN pip config set global.index https://pypi.org/pypi --global && \
     pip config set global.index-url https://pypi.org/simple --global && \
     pip config set global.trusted-host pypi.org --global
 
-RUN cat >/usr/local/sbin/entrypoint-run-pre.sh <<'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
-
-run_hooks() {
-  local hook_dir="$1"
-  if [ -d "$hook_dir" ]; then
-    for hook in "$hook_dir"/*; do
-      [ -e "$hook" ] || continue
-      case "$hook" in
-        *.sh)
-          echo "Running start hook (sh): $hook"
-          . "$hook"
-          ;;
-        *.py)
-          echo "Running start hook (py): $hook"
-          python3 "$hook"
-          ;;
-        *)
-          echo "Running start hook (exec): $hook"
-          "$hook"
-          ;;
-      esac
-    done
-  fi
-}
-
-run_hooks "/usr/local/bin/start-notebook.d"
-EOF
-
-RUN chmod 0755 /usr/local/sbin/entrypoint-run-pre.sh
-ENTRYPOINT ["/usr/local/sbin/entrypoint-run-pre.sh"]
+CMD ["jupyterhub-singleuser"]
 
 USER ${UID}
