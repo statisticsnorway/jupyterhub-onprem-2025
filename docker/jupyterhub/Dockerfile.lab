@@ -169,10 +169,6 @@ RUN chmod +x /opt/conda/share/jupyter/kernels/python3/python.sh
 # trying to fix websockets issue and adding runtime dir inside of the container
 RUN mkdir -p /tmp/jupyter-runtime && chmod 1777 /tmp/jupyter-runtime
 
-#Prevent installation of extentions, by removing write privilege in extension folders.
-RUN chmod u-w  /opt/conda/share/jupyter/labextensions
-RUN chmod u-w  /opt/conda/share/jupyter/nbextensions
-RUN chmod u-w  /opt/conda/share/jupyter/lab/extensions
 
 
 # NSS/SSSD client
