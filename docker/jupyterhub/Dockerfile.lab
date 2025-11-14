@@ -288,6 +288,7 @@ exec su -s /bin/bash -c 'exec jupyterhub-singleuser "$@"' "$TARGET_USER" -- "$@"
 EOF
 
 RUN chmod 0755 /usr/local/sbin/entrypoint-run-pre.sh
+USER root
 ENTRYPOINT ["/usr/local/sbin/entrypoint-run-pre.sh"]
 CMD ["jupyterhub-singleuser"]
 
