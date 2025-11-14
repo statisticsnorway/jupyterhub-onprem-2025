@@ -323,65 +323,11 @@ RUN pip config set global.index https://pypi.org/pypi --global && \
     pip config set global.index-url https://pypi.org/simple --global && \
     pip config set global.trusted-host pypi.org --global
 
-RUN cat >/usr/local/sbin/entrypoint-run-pre.sh <<'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
+# Copy start-singleuser.sh (similar to docker-stacks) to handle hooks and user switching
+COPY ./start-singleuser.sh /usr/local/bin/start-singleuser.sh
+RUN chmod 0755 /usr/local/bin/start-singleuser.sh
 
-run_hooks() {
-  local hook_dir="$1"
-  if [ -d "$hook_dir" ]; then
-    for hook in "$hook_dir"/*; do
-      [ -e "$hook" ] || continue
-      case "$hook" in
-        *.sh)
-          echo "Running start hook (sh): $hook"
-          . "$hook"
-          ;;
-        *.py)
-          echo "Running start hook (py): $hook"
-          python3 "$hook"
-          ;;
-        *)
-          echo "Running start hook (exec): $hook"
-          "$hook"
-          ;;
-      esac
-    done
-  fi
-}
-
-run_hooks "/usr/local/bin/start-notebook.d"
-
-run_user_hooks() {
-  local hook_dir="$1"
-  if [ -d "$hook_dir" ]; then
-    for hook in "$hook_dir"/*; do
-      [ -e "$hook" ] || continue
-      case "$hook" in
-        *.sh)
-          echo "Running before-notebook hook (sh): $hook"
-          /bin/bash -c ". \"$hook\""
-          ;;
-        *.py)
-          echo "Running before-notebook hook (py): $hook"
-          python3 "$hook"
-          ;;
-        *)
-          echo "Running before-notebook hook (exec): $hook"
-          "$hook"
-          ;;
-      esac
-    done
-  fi
-}
-
-run_user_hooks "/usr/local/bin/before-notebook.d"
-
-exec jupyterhub-singleuser "$@"
-EOF
-
-RUN chmod 0755 /usr/local/sbin/entrypoint-run-pre.sh
 USER root
-ENTRYPOINT ["/usr/local/sbin/entrypoint-run-pre.sh"]
+ENTRYPOINT ["/usr/local/bin/start-singleuser.sh"]
 CMD ["jupyterhub-singleuser"]
 
