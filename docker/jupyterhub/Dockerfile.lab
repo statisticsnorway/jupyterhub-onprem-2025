@@ -148,16 +148,44 @@ RUN curl -L https://repo.anaconda.com/miniconda/Miniconda3-py${PYTHON_VERSION}_2
     ./conda-python.sh -b -p $CONDA_DIR && \
     rm -f conda-python.sh
 
-RUN python3 -m pip install --no-cache-dir --upgrade pip && \
-    python3 -m pip install --no-cache-dir \
-        jupyterlab \
-        jupyterhub \
-        jupyterlab-git \
-        jupyterlab_server \
-        notebook \
-        "traitlets<5.14"
-
-WORKDIR ${WORKSPACE_DIR}
+# Install jupyterlab and Python packages
+RUN /opt/scripts/install-jupyterlab.sh && \
+    # Install pip packages and jupyter extentions
+    python3 -m pip install --upgrade pip && \
+    python3 -m pip install jupyterlab-git && \
+    python3 -m pip install nbdime && \
+    python3 -m pip install jupyterhub && \
+    python3 -m pip install nbstripout && \
+    python3 -m pip install jupyterlab-quarto && \
+    python3 -m pip install jupytext && \
+    python3 -m pip install click && \
+    python3 -m pip install papermill && \
+    python3 -m pip install ipywidgets && \
+    python3 -m pip install jupyter-server-proxy && \
+    python3 -m pip install pyviz_comms && \
+    python3 -m pip install panel && \
+    python3 -m pip install plotly && \
+    python3 -m pip install geopandas && \
+    python3 -m pip install ipyleaflet && \
+    python3 -m pip install descartes && \
+    python3 -m pip install jupyter-dash && \
+    python3 -m pip install jupyterlab-lsp && \
+    python3 -m pip install python-language-server[all] && \
+    python3 -m pip install ipysheet && \
+    python3 -m pip install fuzzywuzzy[speedup] && \
+    python3 -m pip install jupyter-resource-usage && \
+    python3 -m pip install ipyparallel && \
+    python3 -m pip install sympy mpmath && \
+    python3 -m pip install sphinx sphinx-autodoc-defaultargs sphinx-autodoc-typehints sphinx-rtd-theme && \
+    python3 -m pip install pytest pytest_tornasync pytest-cov pytest-mock pre-commit-hooks jupyterlab-code-formatter black[jupyter] isort && \
+    python3 -m pip install pyjstat xmltodict lxml holidays PyGithub pre-commit pyminizip rich openpyxl pyarrow python-dotenv && \
+    python3 -m pip install venv-pack nbdev && \
+    python3 -m pip install cx-Oracle && \
+    python3 -m pip install saspy && \
+    python3 -m pip install ipydatagrid && \
+    python3 -m pip install dash && \
+    python3 -m pip install --requirement /tmp/requirements.txt && \
+    python3 -m pip cache purge || true
 
 # Update CA certificates via start-notebook.d hook similar to docker-stacks
 RUN mkdir -p /usr/local/bin/start-notebook.d && \
@@ -315,11 +343,6 @@ run_hooks() {
 
 run_hooks "/usr/local/bin/start-notebook.d"
 
-# Determine PAM user injected by Hub
-TARGET_USER="${JUPYTERHUB_USER:-${USERNAME:-$(id -un)}}"
-id -u "$TARGET_USER" >/dev/null 2>&1 || { echo "No such user $TARGET_USER"; exit 1; }
-CURRENT_USER="$(id -un)"
-
 run_user_hooks() {
   local hook_dir="$1"
   if [ -d "$hook_dir" ]; then
@@ -328,27 +351,15 @@ run_user_hooks() {
       case "$hook" in
         *.sh)
           echo "Running before-notebook hook (sh): $hook"
-          if [ "$CURRENT_USER" = "$TARGET_USER" ]; then
-            /bin/bash -c ". \"$hook\""
-          else
-            su --preserve-environment -s /bin/bash "$TARGET_USER" -c ". \"$hook\""
-          fi
+          /bin/bash -c ". \"$hook\""
           ;;
         *.py)
           echo "Running before-notebook hook (py): $hook"
-          if [ "$CURRENT_USER" = "$TARGET_USER" ]; then
-            python3 "$hook"
-          else
-            su --preserve-environment -s /bin/bash "$TARGET_USER" -c "python3 \"$hook\""
-          fi
+          python3 "$hook"
           ;;
         *)
           echo "Running before-notebook hook (exec): $hook"
-          if [ "$CURRENT_USER" = "$TARGET_USER" ]; then
-            "$hook"
-          else
-            su --preserve-environment -s /bin/bash "$TARGET_USER" -c "\"$hook\""
-          fi
+          "$hook"
           ;;
       esac
     done
@@ -357,12 +368,7 @@ run_user_hooks() {
 
 run_user_hooks "/usr/local/bin/before-notebook.d"
 
-# Start server as that user, preserving Hub args
-if [ "$CURRENT_USER" = "$TARGET_USER" ]; then
-  exec jupyterhub-singleuser "$@"
-else
-  exec su -s /bin/bash -c 'exec jupyterhub-singleuser "$@"' "$TARGET_USER" -- "$@"
-fi
+exec jupyterhub-singleuser "$@"
 EOF
 
 RUN chmod 0755 /usr/local/sbin/entrypoint-run-pre.sh
