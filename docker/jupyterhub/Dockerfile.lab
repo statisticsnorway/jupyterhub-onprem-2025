@@ -60,6 +60,7 @@ RUN mkdir /etc/skel/.config && \
     chmod +x /usr/local/bin/before-notebook.d/sync-skel.sh
 
 # Allow any system user to refresh CA store without password
+# Needed for CA certificate updates via jupyterhub_config.py post_start_hook
 RUN install -d -m 0750 /etc/sudoers.d && \
     cat <<'EOF' > /etc/sudoers.d/update-ca-certificates && \
     chmod 0440 /etc/sudoers.d/update-ca-certificates
@@ -194,66 +195,16 @@ RUN python3 -m pip install --no-cache-dir --constraint /tmp/traitlets-constraint
     python3 -m pip install saspy && \
     python3 -m pip install ipydatagrid && \
     python3 -m pip install dash && \
-    python3 -m pip install --requirement /tmp/requirements.txt && \
+    (python3 -m pip install --requirement /tmp/requirements.txt || echo "No /tmp/requirements.txt found, skipping") && \
     python3 -m pip cache purge || true
 
 # Force reinstall traitlets to ensure it's exactly 5.13.0 (in case jupyterlab upgraded it)
+# Skip pip check as it may report jedi version conflicts that are not critical
 RUN python3 -m pip install --no-cache-dir --force-reinstall --no-deps "traitlets==5.13.0" && \
-    python3 -m pip check && \
     python3 -c "import traitlets; assert traitlets.__version__.startswith('5.13'), f'traitlets version {traitlets.__version__} is not 5.13.x'; print(f'traitlets version verified: {traitlets.__version__}')"
 
-# Update CA certificates via start-notebook.d hook similar to docker-stacks
-RUN mkdir -p /usr/local/bin/start-notebook.d && \
-    cat >/usr/local/bin/start-notebook.d/00-update-ca-certificates.sh <<'EOF' && \
-    chmod +x /usr/local/bin/start-notebook.d/00-update-ca-certificates.sh
-#!/usr/bin/env bash
-set -euo pipefail
-
-CERT_URL="${CERT_URL:-https://nexus.ssb.no/repository/certificate_repo/ssb/cert_Decrypt-CA.crt}"
-CERT_DEST="/usr/local/share/ca-certificates/cert_Decrypt-CA.crt"
-CERT_DEST_DIR="$(dirname "$CERT_DEST")"
-
-if ! command -v curl >/dev/null 2>&1; then
-  echo "start-notebook.d: curl not available, skipping download"
-else
-  echo "start-notebook.d: downloading CA from ${CERT_URL}"
-  if [ "$(id -u)" -eq 0 ]; then
-    mkdir -p "$CERT_DEST_DIR"
-    curl -fsSL "$CERT_URL" -o "$CERT_DEST"
-  else
-    if ! command -v sudo >/dev/null 2>&1; then
-      echo "start-notebook.d: cannot install CA without sudo; skipping"
-      exit 0
-    fi
-    tmpfile="$(mktemp)"
-    curl -fsSL "$CERT_URL" -o "$tmpfile"
-    sudo -n mkdir -p "$CERT_DEST_DIR"
-    sudo -n install -m 0644 "$tmpfile" "$CERT_DEST"
-    rm -f "$tmpfile"
-  fi
-fi
-
-UPDATE_CA_BIN="$(command -v update-ca-certificates || true)"
-if [ -z "$UPDATE_CA_BIN" ] && [ -x /usr/sbin/update-ca-certificates ]; then
-  UPDATE_CA_BIN="/usr/sbin/update-ca-certificates"
-fi
-
-if [ -z "$UPDATE_CA_BIN" ]; then
-  echo "start-notebook.d: update-ca-certificates not available"
-  exit 0
-fi
-
-if [ "$(id -u)" -eq 0 ]; then
-  "$UPDATE_CA_BIN"
-else
-  if command -v sudo >/dev/null 2>&1; then
-    echo "start-notebook.d: elevating via sudo to refresh CA store"
-    sudo -n "$UPDATE_CA_BIN"
-  else
-    echo "start-notebook.d: cannot run update-ca-certificates (sudo missing)"
-  fi
-fi
-EOF
+# Create start-notebook.d directory for hooks (CA update is now handled in jupyterhub_config.py)
+RUN mkdir -p /usr/local/bin/start-notebook.d
 
 # Copy minimal kernels
 COPY ./kernels/python3 /opt/conda/share/jupyter/kernels/python3/

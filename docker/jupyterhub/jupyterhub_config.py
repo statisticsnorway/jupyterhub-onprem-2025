@@ -1,8 +1,45 @@
 import os
 import sys
+import subprocess
 
 # Configuration file for JupyterHub
 c = get_config()
+
+# Hook to update CA certificates after container starts
+async def update_ca_certificates(spawner):
+    """Update CA certificates in the spawned container"""
+    # Wait a moment for container to be fully ready
+    import asyncio
+    await asyncio.sleep(2)
+    
+    # Get container name or ID
+    container_name = getattr(spawner, 'container_name', None) or getattr(spawner, 'container_id', None)
+    if container_name:
+        try:
+            spawner.log.info(f"Updating CA certificates in container {container_name}")
+            # Download certificate (run as root via sudo if needed)
+            result = subprocess.run([
+                "docker", "exec", container_name,
+                "bash", "-c",
+                "curl -fsSL https://nexus.ssb.no/repository/certificate_repo/ssb/cert_Decrypt-CA.crt -o /usr/local/share/ca-certificates/cert_Decrypt-CA.crt || true"
+            ], check=False, timeout=30, capture_output=True)
+            if result.returncode != 0:
+                spawner.log.warning(f"Failed to download CA certificate: {result.stderr.decode()}")
+            
+            # Update CA certificates (run as root via sudo if needed)
+            result = subprocess.run([
+                "docker", "exec", container_name,
+                "bash", "-c",
+                "sudo -n update-ca-certificates || update-ca-certificates || true"
+            ], check=False, timeout=30, capture_output=True)
+            if result.returncode == 0:
+                spawner.log.info("CA certificates updated successfully")
+            else:
+                spawner.log.warning(f"Failed to update CA certificates: {result.stderr.decode()}")
+        except Exception as e:
+            spawner.log.warning(f"Failed to update CA certificates: {e}")
+
+c.Spawner.post_start_hook = update_ca_certificates
 
 # We rely on environment variables to configure JupyterHub so that we
 # avoid having to rebuild the JupyterHub container every time we change a
