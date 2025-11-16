@@ -25,4 +25,7 @@ apt_install \
     libgeos-dev \
     libnode-dev \
     unixodbc-dev \
-    gdal-bin
+    gdal-bin \
+    libdeflate-dev \
+    liblzma-dev \
+    libreadline-dev

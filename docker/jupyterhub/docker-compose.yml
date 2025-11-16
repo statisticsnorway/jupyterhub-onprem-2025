@@ -26,9 +26,6 @@ services:
       - "/var/lib/sss:/var/lib/sss:ro,z"
       - "/run/sssd:/run/sssd:ro,z"
       
-      # mounting ca-trust certificates anchors to ubuntu noble container
-      - "/etc/pki/ca-trust/source/anchors/cert_Decrypt-CA.crt:/usr/local/share/ca-certificates/cert_Decrypt-CA.crt:ro"
-
       # Docker configuration for spawning containers
       - "/home/jupyterhub/.docker:/root/.docker:ro"
 
