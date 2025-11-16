@@ -77,7 +77,6 @@ c.DockerSpawner.volumes = {
 }
 # host_homedir_format_string must be set to map /ssb/bruker/{username} to /home/{username}
 c.SystemUserSpawner.host_homedir_format_string = "/ssb/bruker/{username}"
-c.SystemUserSpawner.container_home_dir = "/ssb/bruker/{username}"
 # Allowing users to delete non-empty directories in the jupyterlab file-explorer
 c.FileContentsManager.always_delete_dir = True
 
@@ -153,7 +152,7 @@ c.DockerSpawner.environment.update({
 # -------------------------------------------------------------------
 c.Spawner.args = [
     "--ServerApp.shutdown_no_activity_timeout=28800",
-    "--ServerApp.tornado_settings={\"static_cache_max_age\":0}",
+    '--ServerApp.tornado_settings={"static_cache_max_age":0}',
     "--ServerApp.log_level=WARN",
     "--MappingKernelManager.cull_idle_timeout=3600",
     "--MappingKernelManager.cull_interval=120",
@@ -163,5 +162,5 @@ c.Spawner.args = [
     "--TerminalManager.cull_interval=120",
     "--FileContentsManager.always_delete_dir=True",
     "--ContentsManager.allow_hidden=True",
-    "--ServerApp.jpserver_extensions={'jupyter_resource_usage': True}"
+    "--ServerApp.jpserver_extensions={\"jupyter_resource_usage\": true}"
 ]

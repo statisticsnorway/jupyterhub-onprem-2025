@@ -50,5 +50,9 @@ if [ -d "/usr/local/bin/before-notebook.d" ]; then
 fi
 
 # Start jupyterhub-singleuser
+# If first argument is "jupyterhub-singleuser", skip it (it's already in CMD)
+if [ "$1" = "jupyterhub-singleuser" ]; then
+    shift
+fi
 echo "Starting jupyterhub-singleuser $@"
 exec jupyterhub-singleuser "$@"
