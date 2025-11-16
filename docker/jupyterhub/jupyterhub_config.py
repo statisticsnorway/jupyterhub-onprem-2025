@@ -39,7 +39,18 @@ c.DockerSpawner.image = os.environ["DOCKER_NOTEBOOK_IMAGE"]
 # jupyter/docker-stacks *-notebook images as the Docker run command when
 # spawning containers.  Optionally, you can override the Docker run command
 # using the DOCKER_SPAWN_CMD environment variable.
-spawn_cmd = os.environ.get("DOCKER_SPAWN_CMD", "jupyterhub-singleuser")
+# Note: Since ENTRYPOINT is start-singleuser.sh and CMD is ["jupyterhub-singleuser"],
+# DOCKER_SPAWN_CMD can override the entire CMD. If it starts with "jupyterhub-singleuser",
+# it will be used as-is. Otherwise, it's treated as additional arguments.
+# SystemUserSpawner will use CMD from Dockerfile by default: ["jupyterhub-singleuser"]
+spawn_cmd = os.environ.get("DOCKER_SPAWN_CMD", None)
+if spawn_cmd:
+    # Split spawn_cmd into list for DockerSpawner.cmd
+    # This will override CMD from Dockerfile
+    # ENTRYPOINT (start-singleuser.sh) will receive these as $@ arguments
+    # start-singleuser.sh will then run: exec jupyterhub-singleuser "$@"
+    cmd_parts = spawn_cmd.split()
+    c.DockerSpawner.cmd = cmd_parts
 
 # Enable SystemUserSpawner features
 
@@ -65,7 +76,6 @@ c.DockerSpawner.volumes = {
 }
 # host_homedir_format_string must be set to map /ssb/bruker/{username} to /home/{username}
 c.SystemUserSpawner.host_homedir_format_string = "/ssb/bruker/{username}"
-c.SystemUserSpawner.container_home_dir = "/ssb/bruker/{username}"
 # Allowing users to delete non-empty directories in the jupyterlab file-explorer
 c.FileContentsManager.always_delete_dir = True
 
@@ -126,6 +136,7 @@ c.DockerSpawner.environment = {
     # Keep application-specific variables
     "STATBANK_ENCRYPT_URL": os.environ.get("STATBANK_ENCRYPT_URL", "UNKNOWN"),
     "STATBANK_BASE_URL": os.environ.get("STATBANK_BASE_URL", "UNKNOWN"),
+    "STATBANK_TEST_BASE_URL": os.environ.get("STATBANK_TEST_BASE_URL", "UNKNOWN"),
     # Set the hostname of the server. We use this environment variable to match with the
     # one used in Dapla Jupyterhub.
     "JUPYTERHUB_HTTP_REFERER": os.environ.get("JUPYTERHUB_HTTP_REFERER", "UNKNOWN"),
@@ -141,7 +152,7 @@ c.DockerSpawner.environment.update({
 # -------------------------------------------------------------------
 c.Spawner.args = [
     "--ServerApp.shutdown_no_activity_timeout=28800",
-    "--ServerApp.tornado_settings={\"static_cache_max_age\":0}",
+    '--ServerApp.tornado_settings={"static_cache_max_age":0}',
     "--ServerApp.log_level=WARN",
     "--MappingKernelManager.cull_idle_timeout=3600",
     "--MappingKernelManager.cull_interval=120",
@@ -151,5 +162,4 @@ c.Spawner.args = [
     "--TerminalManager.cull_interval=120",
     "--FileContentsManager.always_delete_dir=True",
     "--ContentsManager.allow_hidden=True",
-    "--ServerApp.jpserver_extensions={'jupyter_resource_usage': True}"
 ]
