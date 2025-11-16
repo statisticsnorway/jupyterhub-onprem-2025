@@ -43,7 +43,7 @@ The Hub exposes ports 443 and 8080 (see `docker/jupyterhub/docker-compose.yml`).
 - Spawner: `dockerspawner.SystemUserSpawner`.
 - PAM via `PAMAuthenticator` with SSSD. The Compose file mounts:
   - `/var/lib/sss` and `/run/sssd` in the Hub container for lookups.
-- Single‑user containers join the `jupyterhub-network` and reach the Hub at `jupyterhub:8080`.
+- Single‑user containers join the `jupyterhub-network` and reach the Hub at `jupyterhub:8080`
 
 ### Volumes and Paths
 - The NFS share `/ssb` is mounted into both Hub and single‑user containers.
@@ -51,7 +51,6 @@ The Hub exposes ports 443 and 8080 (see `docker/jupyterhub/docker-compose.yml`).
 
 ### Jupyter Server / Lab Behavior
 - Hidden files are shown and culling is enabled via `c.Spawner.args` in `jupyterhub_config.py`.
-- Alternatively, you can place equivalent settings as JSON in the Lab image under `/opt/conda/etc/jupyter/jupyter_server_config.d/` if you prefer fewer runtime arguments.
 
 ## JupyterLab Customization
 
@@ -75,19 +74,14 @@ The Extension Manager is disabled as part of the image build (`jupyter labextens
     }
     ```
 
-## R Kernel
+## Kernels
 - IRkernel and required system libraries are installed in the Lab image.
-- The kernel launcher script lives in `docker/jupyterhub/kernels/ir/r.sh`.
+- The kernel launcher script lives in `docker/jupyterhub/kernels/`
 
 ## Troubleshooting
 
-### Terminal prompt shows "I have no name!"
-- Ensure SSSD/PAM lookups are functioning in the relevant containers.
-- Do not mount `/etc/shadow` from the host; it may break authentication.
-
 ### First terminal is slow to open
 - Server runtime directory is `/tmp/jupyter-runtime` to avoid NFS latency.
-- Shell initialization is optimized; set `FAST_SHELL=1` for extra‑fast init if needed.
 
 ### Building Lab extensions
 - The custom extension builds with TypeScript only (no bundler) and targets JupyterLab 4.4.x. Ensure peer/dev dependencies line up with your Lab version.

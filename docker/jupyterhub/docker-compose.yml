@@ -22,7 +22,7 @@ services:
       # Mounting SSL_CERT & SSL_KEY
       - "${HOME}/secrets/ssl:/srv/jupyterhub/secrets"
 
-        # Mounting SSSD directories for PAM authentication
+      # Mounting SSSD directories for PAM authentication
       - "/var/lib/sss:/var/lib/sss:ro,z"
       - "/run/sssd:/run/sssd:ro,z"
       
@@ -43,6 +43,7 @@ services:
       # Should be passed on to jupyterlab instances
       STATBANK_ENCRYPT_URL: http://statbank-authenticator:8080/encrypt
       STATBANK_BASE_URL: ${STATBANK_BASE_URL}
+      STATBANK_TEST_BASE_URL: ${STATBANK_TEST_BASE_URL}
       JUPYTERHUB_HTTP_REFERER: ${JUPYTERHUB_HTTP_REFERER}
       DAPLA_ENVIRONMENT: ${DAPLA_ENVIRONMENT}
   

@@ -136,6 +136,7 @@ c.DockerSpawner.environment = {
     # Keep application-specific variables
     "STATBANK_ENCRYPT_URL": os.environ.get("STATBANK_ENCRYPT_URL", "UNKNOWN"),
     "STATBANK_BASE_URL": os.environ.get("STATBANK_BASE_URL", "UNKNOWN"),
+    "STATBANK_TEST_BASE_URL": os.environ.get("STATBANK_TEST_BASE_URL", "UNKNOWN"),
     # Set the hostname of the server. We use this environment variable to match with the
     # one used in Dapla Jupyterhub.
     "JUPYTERHUB_HTTP_REFERER": os.environ.get("JUPYTERHUB_HTTP_REFERER", "UNKNOWN"),
