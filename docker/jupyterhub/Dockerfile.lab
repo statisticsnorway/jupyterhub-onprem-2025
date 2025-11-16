@@ -60,7 +60,7 @@ RUN mkdir /etc/skel/.config && \
     chmod +x /usr/local/bin/before-notebook.d/sync-skel.sh
 
 # Allow any system user to refresh CA store without password
-# Needed for CA certificate updates via jupyterhub_config.py post_start_hook
+# Needed for CA certificate updates via start-notebook.d hooks
 RUN install -d -m 0750 /etc/sudoers.d && \
     cat <<'EOF' > /etc/sudoers.d/update-ca-certificates && \
     chmod 0440 /etc/sudoers.d/update-ca-certificates
@@ -207,7 +207,11 @@ RUN python3 -m pip install --no-cache-dir --force-reinstall --no-deps "traitlets
 RUN mkdir -p /usr/local/bin/start-notebook.d && \
     echo '#!/bin/bash' > /usr/local/bin/start-notebook.d/update-certificate.sh && \
     echo 'set -e' >> /usr/local/bin/start-notebook.d/update-certificate.sh && \
-    echo 'curl -fsSL https://nexus.ssb.no/repository/certificate_repo/ssb/cert_Decrypt-CA.crt --output /usr/local/share/ca-certificates/cert_Decrypt-CA.crt || true' >> /usr/local/bin/start-notebook.d/update-certificate.sh && \
+    echo '# Download certificate to temp file first, then move with sudo' >> /usr/local/bin/start-notebook.d/update-certificate.sh && \
+    echo 'TMP_CERT=$(mktemp)' >> /usr/local/bin/start-notebook.d/update-certificate.sh && \
+    echo 'curl -fsSL https://nexus.ssb.no/repository/certificate_repo/ssb/cert_Decrypt-CA.crt --output "$TMP_CERT" && sudo -n install -m 644 "$TMP_CERT" /usr/local/share/ca-certificates/cert_Decrypt-CA.crt || true' >> /usr/local/bin/start-notebook.d/update-certificate.sh && \
+    echo 'rm -f "$TMP_CERT"' >> /usr/local/bin/start-notebook.d/update-certificate.sh && \
+    echo '# Update CA certificates' >> /usr/local/bin/start-notebook.d/update-certificate.sh && \
     echo 'sudo -n update-ca-certificates || update-ca-certificates || true' >> /usr/local/bin/start-notebook.d/update-certificate.sh && \
     chmod +x /usr/local/bin/start-notebook.d/update-certificate.sh
 

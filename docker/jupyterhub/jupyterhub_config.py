@@ -162,5 +162,4 @@ c.Spawner.args = [
     "--TerminalManager.cull_interval=120",
     "--FileContentsManager.always_delete_dir=True",
     "--ContentsManager.allow_hidden=True",
-    "--ServerApp.jpserver_extensions={\"jupyter_resource_usage\": true}"
 ]
