@@ -203,8 +203,13 @@ RUN python3 -m pip install --no-cache-dir --constraint /tmp/traitlets-constraint
 RUN python3 -m pip install --no-cache-dir --force-reinstall --no-deps "traitlets==5.13.0" && \
     python3 -c "import traitlets; assert traitlets.__version__.startswith('5.13'), f'traitlets version {traitlets.__version__} is not 5.13.x'; print(f'traitlets version verified: {traitlets.__version__}')"
 
-# Create start-notebook.d directory for hooks (CA update is now handled in jupyterhub_config.py)
-RUN mkdir -p /usr/local/bin/start-notebook.d
+# Create start-notebook.d directory for hooks
+RUN mkdir -p /usr/local/bin/start-notebook.d && \
+    echo '#!/bin/bash' > /usr/local/bin/start-notebook.d/update-certificate.sh && \
+    echo 'set -e' >> /usr/local/bin/start-notebook.d/update-certificate.sh && \
+    echo 'curl -fsSL https://nexus.ssb.no/repository/certificate_repo/ssb/cert_Decrypt-CA.crt --output /usr/local/share/ca-certificates/cert_Decrypt-CA.crt || true' >> /usr/local/bin/start-notebook.d/update-certificate.sh && \
+    echo 'sudo -n update-ca-certificates || update-ca-certificates || true' >> /usr/local/bin/start-notebook.d/update-certificate.sh && \
+    chmod +x /usr/local/bin/start-notebook.d/update-certificate.sh
 
 # Copy minimal kernels
 COPY ./kernels/python3 /opt/conda/share/jupyter/kernels/python3/

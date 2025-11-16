@@ -1,45 +1,8 @@
 import os
 import sys
-import subprocess
 
 # Configuration file for JupyterHub
 c = get_config()
-
-# Hook to update CA certificates after container starts
-async def update_ca_certificates(spawner):
-    """Update CA certificates in the spawned container"""
-    # Wait a moment for container to be fully ready
-    import asyncio
-    await asyncio.sleep(2)
-    
-    # Get container name or ID
-    container_name = getattr(spawner, 'container_name', None) or getattr(spawner, 'container_id', None)
-    if container_name:
-        try:
-            spawner.log.info(f"Updating CA certificates in container {container_name}")
-            # Download certificate (run as root via sudo if needed)
-            result = subprocess.run([
-                "docker", "exec", container_name,
-                "bash", "-c",
-                "curl -fsSL https://nexus.ssb.no/repository/certificate_repo/ssb/cert_Decrypt-CA.crt -o /usr/local/share/ca-certificates/cert_Decrypt-CA.crt || true"
-            ], check=False, timeout=30, capture_output=True)
-            if result.returncode != 0:
-                spawner.log.warning(f"Failed to download CA certificate: {result.stderr.decode()}")
-            
-            # Update CA certificates (run as root via sudo if needed)
-            result = subprocess.run([
-                "docker", "exec", container_name,
-                "bash", "-c",
-                "sudo -n update-ca-certificates || update-ca-certificates || true"
-            ], check=False, timeout=30, capture_output=True)
-            if result.returncode == 0:
-                spawner.log.info("CA certificates updated successfully")
-            else:
-                spawner.log.warning(f"Failed to update CA certificates: {result.stderr.decode()}")
-        except Exception as e:
-            spawner.log.warning(f"Failed to update CA certificates: {e}")
-
-c.Spawner.post_start_hook = update_ca_certificates
 
 # We rely on environment variables to configure JupyterHub so that we
 # avoid having to rebuild the JupyterHub container every time we change a
@@ -76,7 +39,18 @@ c.DockerSpawner.image = os.environ["DOCKER_NOTEBOOK_IMAGE"]
 # jupyter/docker-stacks *-notebook images as the Docker run command when
 # spawning containers.  Optionally, you can override the Docker run command
 # using the DOCKER_SPAWN_CMD environment variable.
-spawn_cmd = os.environ.get("DOCKER_SPAWN_CMD", "jupyterhub-singleuser")
+# Note: Since ENTRYPOINT is start-singleuser.sh and CMD is ["jupyterhub-singleuser"],
+# DOCKER_SPAWN_CMD can override the entire CMD. If it starts with "jupyterhub-singleuser",
+# it will be used as-is. Otherwise, it's treated as additional arguments.
+# SystemUserSpawner will use CMD from Dockerfile by default: ["jupyterhub-singleuser"]
+spawn_cmd = os.environ.get("DOCKER_SPAWN_CMD", None)
+if spawn_cmd:
+    # Split spawn_cmd into list for DockerSpawner.cmd
+    # This will override CMD from Dockerfile
+    # ENTRYPOINT (start-singleuser.sh) will receive these as $@ arguments
+    # start-singleuser.sh will then run: exec jupyterhub-singleuser "$@"
+    cmd_parts = spawn_cmd.split()
+    c.DockerSpawner.cmd = cmd_parts
 
 # Enable SystemUserSpawner features
 
