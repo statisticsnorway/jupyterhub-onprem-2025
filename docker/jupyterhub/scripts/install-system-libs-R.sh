@@ -29,4 +29,5 @@ apt_install \
     libdeflate-dev \
     liblzma-dev \
     libreadline-dev \
-    libudunits2-dev
+    libudunits2-dev \
+    libx11-dev
