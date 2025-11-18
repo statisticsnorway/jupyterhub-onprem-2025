@@ -28,4 +28,5 @@ apt_install \
     gdal-bin \
     libdeflate-dev \
     liblzma-dev \
-    libreadline-dev
+    libreadline-dev \
+    libudunits2-dev
