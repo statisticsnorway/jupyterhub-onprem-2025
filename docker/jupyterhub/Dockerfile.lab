@@ -183,7 +183,7 @@ RUN sed -i "/^PATH=/c\PATH=$PATH" "$R_HOME/etc/Renviron.site"
 # ------------------------------------------------------------------------------
 # Python/Conda installation and configuration
 # ------------------------------------------------------------------------------
-ARG PYTHON_VERSION="311"
+ARG PYTHON_VERSION="313"
 ENV PYTHON_VERSION=${PYTHON_VERSION}
 
 # Set template version for ssb-project-cli
@@ -209,7 +209,7 @@ ENV CONDA_DIR=${CONDA_DIR}
 ENV PATH="${CONDA_DIR}/bin:${PATH}"
 
 # Install miniconda
-RUN curl -L https://repo.anaconda.com/miniconda/Miniconda3-py${PYTHON_VERSION}_24.4.0-0-Linux-x86_64.sh -o conda-python.sh && \
+RUN curl -L https://repo.anaconda.com/miniconda/Miniconda3-py${PYTHON_VERSION}_25.9.1-3-Linux-x86_64.sh -o conda-python.sh && \
     chmod +x conda-python.sh && \
     ./conda-python.sh -b -p $CONDA_DIR && \
     rm -f conda-python.sh
