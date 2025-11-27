@@ -4,6 +4,9 @@
 # .bashrc also calls bashrc.felles
 source $HOME/.bashrc
 
+# Fixing so R can find TinyTeX and install ROracle with renv
+export PATH="/opt/TinyTeX/bin/x86_64-linux:${PATH}"
+
 export R_PROFILE_USER="/opt/conda/share/jupyter/kernels/ir/Rstartup"
 export R_LIBS_USER="/usr/local/lib/R/library"
 

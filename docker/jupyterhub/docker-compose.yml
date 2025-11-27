@@ -22,19 +22,9 @@ services:
       # Mounting SSL_CERT & SSL_KEY
       - "${HOME}/secrets/ssl:/srv/jupyterhub/secrets"
 
-        # Mounting SSSD directories for PAM authentication
+      # Mounting SSSD directories for PAM authentication
       - "/var/lib/sss:/var/lib/sss:ro,z"
       - "/run/sssd:/run/sssd:ro,z"
-      
-      # # Mount PAM configuration (RHEL 9 host -> Ubuntu Noble container)
-      # - "/etc/pam.d:/etc/pam.d:ro"
-      # - "/etc/nsswitch.conf:/etc/nsswitch.conf:ro"
-      # - "/etc/sssd:/etc/sssd:ro"
-      
-      # # Additional RHEL 9 specific mounts for SSSD/PAM compatibility
-      # - "/etc/passwd:/etc/passwd:ro"
-      # - "/etc/group:/etc/group:ro"
-      # - "/etc/shadow:/etc/shadow:ro"
       
       # Docker configuration for spawning containers
       - "/home/jupyterhub/.docker:/root/.docker:ro"
@@ -46,12 +36,14 @@ services:
       # Define the internal network name
       DOCKER_NETWORK_NAME: jupyterhub-network
       # Using this run command (optional)
-      DOCKER_SPAWN_CMD: "jupyterhub-singleuser --allow-root"
+      # Note: SystemUserSpawner already runs as the correct user, so --allow-root is not needed
+      # DOCKER_SPAWN_CMD: "jupyterhub-singleuser"
       # Other minimal env vars if needed by the config (adjust as needed)
       DATA_VOLUME_CONTAINER: /data # For cookie secret path
       # Should be passed on to jupyterlab instances
       STATBANK_ENCRYPT_URL: http://statbank-authenticator:8080/encrypt
       STATBANK_BASE_URL: ${STATBANK_BASE_URL}
+      STATBANK_TEST_BASE_URL: ${STATBANK_TEST_BASE_URL}
       JUPYTERHUB_HTTP_REFERER: ${JUPYTERHUB_HTTP_REFERER}
       DAPLA_ENVIRONMENT: ${DAPLA_ENVIRONMENT}
   

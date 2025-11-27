@@ -45,6 +45,17 @@ ip("igraph",             deps = TRUE)
 ip("dggridR",            deps = TRUE)
 ip("languageserver",     deps = TRUE)
 ip("lintr",              deps = TRUE)
+ip("tidyverse",          deps = TRUE)
+ip("openxlsx",           deps = TRUE)
+ip("survey",             deps = TRUE)
+ip("eurostat",           deps = TRUE)
+ip("easySdcTable",       deps = TRUE)
+
+# Install ROracle from local tarball if present
+local_pkg <- '/tmp/ROracle_1.4-1_R_x86_64-unknown-linux-gnu.tar.gz'
+if (file.exists(local_pkg)) {
+  install.packages(local_pkg, repos = NULL, type = 'source')
+}
 
 # Ensure 'remotes' present for GitHub installs
 if (!requireNamespace("remotes", quietly = TRUE)) {

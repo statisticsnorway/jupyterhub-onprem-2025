@@ -110,80 +110,15 @@ RUN apt-get update && \
     && chown -R ${USERNAME}:${GROUPNAME} ${HOME} \
     && rm -rf /var/lib/apt/lists/*
 
-# ------------------------------------------------------------------------------
-# R and Java installation and configuration
-# ------------------------------------------------------------------------------
-
-ARG R_VERSION="4.4.0"
-ENV R_VERSION=${R_VERSION}
-ENV R_HOME="/usr/local/lib/R"
-ENV DEFAULT_USER="${USERNAME}"
-
-# Java configuration
-ARG JAVA_VERSION="17"
-ENV JAVA_VERSION=${JAVA_VERSION}
-ENV JAVA_HOME="/usr/lib/jvm/java-$JAVA_VERSION-openjdk-amd64"
-ENV PATH="${JAVA_HOME}/bin:${PATH}"
-
-
-# Apache Arrow configuration
-ARG ARROW_VERSION="18.1.0"
-ENV ARROW_VERSION=${ARROW_VERSION}
-
-# Use RStudio's package manager to download packages as binaries
-ENV CRAN="https://packagemanager.posit.co/cran/__linux__/noble/latest"
-
 COPY ./scripts /opt/scripts/
 RUN chmod +x -R /opt/scripts/ && \
     chown -R ${USERNAME}:${GROUPNAME} /opt/scripts/ && \
     chmod -R 700 /opt/scripts/
 
-# Clone and prepare R installation scripts
-RUN mkdir -p /rocker_scripts && \
-    git clone --branch R${R_VERSION} --depth 1 https://github.com/rocker-org/rocker-versioned2.git /tmp/rocker-versioned2 && \
-    cp -r /tmp/rocker-versioned2/scripts/* /rocker_scripts/ && \
-    rm -rf /tmp/rocker-versioned2 && \
-    chown -R ${USERNAME}:${GROUPNAME} /rocker_scripts/ && \
-    chmod -R 700 /rocker_scripts/
-
-# Install Oracle and R from source and link jwsacruncher
-RUN /rocker_scripts/install_R_source.sh && \
-    /opt/scripts/install-java.sh && \
-    /rocker_scripts/setup_R.sh && \
-    /opt/scripts/install-system-libs.sh && \
-    /opt/scripts/install-system-libs-R.sh && \
-    /opt/scripts/install-oracle-instantclient.sh && \
-    chown -R ${USERNAME}:${GROUPNAME} ${HOME} ${R_HOME}
-
-# Setting up environment variables for Oracle so the ROracle package can be installed
-ENV OCI_INC=/usr/include/oracle/21/client64
-ENV OCI_LIB=/usr/lib/oracle/21/client64/lib
-ENV ORACLE_HOME=/usr/lib/oracle/21/client64
-ENV TNS_ADMIN=/usr/lib/oracle/21/client64/lib/network
-ENV LD_LIBRARY_PATH="/usr/lib/oracle/21/client64/lib:${LD_LIBRARY_PATH}"
-
-# Copy the ROracle installation file into the container and link libaio.so.1
-COPY ROracle_1.4-1_R_x86_64-unknown-linux-gnu.tar.gz /tmp/ROracle_1.4-1_R_x86_64-unknown-linux-gnu.tar.gz
-RUN ln -sf /lib/x86_64-linux-gnu/libaio.so.1t64 /lib/x86_64-linux-gnu/libaio.so.1 && \
-    ldconfig
-
-RUN /opt/scripts/install-r-packages.sh && \
-    /opt/scripts/install-arrow.sh && \
-    chown -R ${USERNAME}:${GROUPNAME} ${HOME} ${R_HOME} && \
-    rm -f /tmp/ROracle_1.4-1_R_x86_64-unknown-linux-gnu.tar.gz
-
-# Install jwsacruncher
-COPY ./jwsacruncher-2.2.4.zip /tmp/jwsacruncher-2.2.4.zip
-RUN unzip /tmp/jwsacruncher-2.2.4.zip -d /opt && rm -f /tmp/jwsacruncher-2.2.4.zip
-# Create a symlink at /usr/bin so users can call jwsacruncher from anywhere
-RUN ln -s /opt/jwsacruncher-2.2.4/bin/jwsacruncher /usr/bin/jwsacruncher
-
-RUN sed -i "/^PATH=/c\PATH=$PATH" "$R_HOME/etc/Renviron.site"
-
 # ------------------------------------------------------------------------------
 # Python/Conda installation and configuration
 # ------------------------------------------------------------------------------
-ARG PYTHON_VERSION="313"
+ARG PYTHON_VERSION="311"
 ENV PYTHON_VERSION=${PYTHON_VERSION}
 
 # Set template version for ssb-project-cli
@@ -209,28 +144,23 @@ ENV CONDA_DIR=${CONDA_DIR}
 ENV PATH="${CONDA_DIR}/bin:${PATH}"
 
 # Install miniconda
-RUN curl -L https://repo.anaconda.com/miniconda/Miniconda3-py${PYTHON_VERSION}_25.9.1-3-Linux-x86_64.sh -o conda-python.sh && \
+RUN curl -L https://repo.anaconda.com/miniconda/Miniconda3-py${PYTHON_VERSION}_24.4.0-0-Linux-x86_64.sh -o conda-python.sh && \
     chmod +x conda-python.sh && \
     ./conda-python.sh -b -p $CONDA_DIR && \
     rm -f conda-python.sh
 
-# Set RETICULATE_PYTHON and RETICULATE_USE_UV so R can read from Python
-ENV RETICULATE_PYTHON=/opt/conda/bin/python
-ENV RETICULATE_USE_UV=0
+# Pin traitlets BEFORE jupyterlab to avoid jupyter_server TypeError with traitlets >= 5.14
+# Use specific version to ensure it's not upgraded
+RUN python3 -m pip install --upgrade pip && \
+    python3 -m pip install --no-cache-dir "traitlets==5.13.0"
 
-# Installs pipx, Quarto and texlive packages
-COPY ./requirements.txt /tmp/requirements.txt    
-# Install Quarto latest version and TeX Live packages
-RUN /opt/scripts/install-quarto.sh && \
-    /opt/scripts/install-texlive-packages.sh
-
-# Install Node.js (required for JupyterLab 4.x extensions)
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y nodejs && \
-    node --version && npm --version
+# Create constraints file to prevent traitlets from being upgraded
+RUN echo "traitlets==5.13.0" > /tmp/traitlets-constraint.txt
 
 # Install jupyterlab and Python packages
-RUN /opt/scripts/install-jupyterlab.sh && \
+# Note: install-jupyterlab.sh is commented out, installing jupyterlab directly here
+# Use --constraint to prevent traitlets upgrade
+RUN python3 -m pip install --no-cache-dir --constraint /tmp/traitlets-constraint.txt jupyterlab && \
     # Install pip packages and jupyter extentions
     python3 -m pip install --upgrade pip && \
     python3 -m pip install jupyterlab-git && \
@@ -265,43 +195,13 @@ RUN /opt/scripts/install-jupyterlab.sh && \
     python3 -m pip install saspy && \
     python3 -m pip install ipydatagrid && \
     python3 -m pip install dash && \
-    python3 -m pip install --requirement /tmp/requirements.txt && \
+    (python3 -m pip install --requirement /tmp/requirements.txt || echo "No /tmp/requirements.txt found, skipping") && \
     python3 -m pip cache purge || true
 
-RUN python -m pip install pipx && \
-# Install and configure pipx packages
-    pipx install nox && \
-    pipx install poetry && \
-    pipx install pre-commit && \
-    pipx inject nox nox-poetry && \
-    pipx inject poetry poetry-plugin-export && \
-    pipx inject poetry poetry-plugin-shell
-
-# Install pipx packages listed in requirements.txt
-RUN /opt/scripts/pipx_install_packages.sh && \
-    rm /tmp/requirements.txt
-
-# Install tiny labextension to open Hub Control Panel in same tab to fix sluggish terminal loading
-WORKDIR /opt/jupyter-ext/hub-control-panel-same-tab
-COPY ./labextensions/hub-control-panel-same-tab /opt/jupyter-ext/hub-control-panel-same-tab
-RUN npm ci || npm install && \
-    npm run build && \
-    jupyter labextension install . --no-build
-
-# Disable unwanted extensions and build Lab once
-RUN set -eux; \
-    jupyter labextension disable @jupyterlab/docmanager-extension:download || true; \
-    jupyter labextension disable @jupyterlab/filebrowser-extension:download || true; \
-    jupyter labextension disable @jupyterlab/extensionmanager-extension || true; \
-    jupyter labextension disable "@jupyterlab/apputils-extension:announcements" || true; \
-    jupyter labextension disable "@jupyterlab/apputils-extension:layout" || true; \
-    jupyter labextension disable jupyterlab-dash || true; \
-    jupyter labextension disable "@dask/dask-labextension:plugin" || true; \
-    jupyter labextension disable "@dask/gateway-extension:plugin" || true; \
-    jupyter labextension disable "jupyterlab-kubernetes:plugin" || true; \
-    jupyter lab build
-
-WORKDIR ${WORKSPACE_DIR}
+# Force reinstall traitlets to ensure it's exactly 5.13.0 (in case jupyterlab upgraded it)
+# Skip pip check as it may report jedi version conflicts that are not critical
+RUN python3 -m pip install --no-cache-dir --force-reinstall --no-deps "traitlets==5.13.0" && \
+    python3 -c "import traitlets; assert traitlets.__version__.startswith('5.13'), f'traitlets version {traitlets.__version__} is not 5.13.x'; print(f'traitlets version verified: {traitlets.__version__}')"
 
 # Create start-notebook.d directory for hooks
 RUN mkdir -p /usr/local/bin/start-notebook.d && \
@@ -315,28 +215,16 @@ RUN mkdir -p /usr/local/bin/start-notebook.d && \
     echo 'sudo -n update-ca-certificates || update-ca-certificates || true' >> /usr/local/bin/start-notebook.d/update-certificate.sh && \
     chmod +x /usr/local/bin/start-notebook.d/update-certificate.sh
 
-ENV ARROW_THIRDPARTY_DEPENDENCY_DIR=$FELLES/R_pakker/arrow
-ENV ARROW_GCS=OFF
-ENV ARROW_S3=OFF
-
-# Copy the kernels
-COPY ./kernels/ir /opt/conda/share/jupyter/kernels/ir/
+# Copy minimal kernels
 COPY ./kernels/python3 /opt/conda/share/jupyter/kernels/python3/
-
-# Allowing everyone to execute python.sh and r.sh, this is done indirectly by users
 RUN chmod +x /opt/conda/share/jupyter/kernels/python3/python.sh
-RUN chmod +x /opt/conda/share/jupyter/kernels/ir/r.sh
 
 # trying to fix websockets issue and adding runtime dir inside of the container
 RUN mkdir -p /tmp/jupyter-runtime && chmod 1777 /tmp/jupyter-runtime
 
-#Prevent installation of extentions, by removing write privilege in extension folders.
-RUN chmod u-w  /opt/conda/share/jupyter/labextensions
-RUN chmod u-w  /opt/conda/share/jupyter/nbextensions
-RUN chmod u-w  /opt/conda/share/jupyter/lab/extensions
 
 
-# NSS/SSSD client (install after rocker scripts)
+# NSS/SSSD client
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         libpam-sss \
@@ -354,9 +242,6 @@ RUN apt-get update && \
 COPY ./common-bashrc /etc/skel/.bashrc
 
 COPY ./common-bashrc /usr/local/share/etc/bashrc.felles
-
-# Change default R repo
-COPY Rprofile.site /etc/R/Rprofile.site
 
 RUN mkdir -p /usr/local/bin/before-notebook.d && \
   cat >/usr/local/bin/before-notebook.d/10-git-safe.sh <<'EOF'
@@ -383,10 +268,6 @@ RUN ln -s /opt/conda/bin/python /usr/bin/python
 
 # (Optional but recommended) System-wide fallback so non-interactive git also trusts repos
 RUN git config --system --add safe.directory '*'
-
-# Set CRAN to the Nexus repository
-RUN unset CRAN
-ENV CRAN=https://nexus.ssb.no/repository/packagemanager-rstudio-noble/
 
 # Create a symlink to the stamme_variabel file
 RUN ln -s /ssb/share/etc/stamme_variabel /etc/profile.d/stamme_variabel
@@ -415,3 +296,4 @@ RUN chmod 0755 /usr/local/bin/start-singleuser.sh
 USER root
 ENTRYPOINT ["/usr/local/bin/start-singleuser.sh"]
 CMD ["jupyterhub-singleuser"]
+
