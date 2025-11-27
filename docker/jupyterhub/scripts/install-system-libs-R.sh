@@ -14,4 +14,20 @@ apt_install \
     libglpk40 \
     libpq-dev \
     libzmq3-dev \
-    libgit2-dev
+    libgit2-dev \
+    libfontconfig1-dev \
+    libglpk-dev \
+    libgmp-dev \
+    libharfbuzz-dev \
+    libfribidi-dev \
+    libgdal-dev \
+    libproj-dev \
+    libgeos-dev \
+    libnode-dev \
+    unixodbc-dev \
+    gdal-bin \
+    libdeflate-dev \
+    liblzma-dev \
+    libreadline-dev \
+    libudunits2-dev \
+    libx11-dev

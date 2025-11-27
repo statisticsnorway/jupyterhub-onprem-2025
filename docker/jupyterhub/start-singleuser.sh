@@ -1,31 +1,58 @@
 #!/bin/bash
 set -e
 
-echo "Starting with NB_USER=$NB_USER, NB_UID=$NB_UID, NB_GID=$NB_GID"
+echo "Entered start-singleuser.sh with args: $@"
 
-# Create user if environment variables are set and user doesn't exist
-if [ -n "$NB_USER" ] && [ -n "$NB_UID" ] && [ -n "$NB_GID" ]; then
-    echo "Creating user: $NB_USER with UID: $NB_UID, GID: $NB_GID"
-    
-    # Create group if it doesn't exist
-    if ! getent group "$NB_GID" > /dev/null 2>&1; then
-        groupadd -g "$NB_GID" "$NB_USER" || true
-    fi
-    
-    # Create user if it doesn't exist
-    if ! id "$NB_USER" > /dev/null 2>&1; then
-        useradd -u "$NB_UID" -g "$NB_GID" -s /bin/bash -m "$NB_USER" || true
-        # Copy jovyan's environment to new user
-        if [ -d "/home/jovyan" ] && [ "$NB_USER" != "jovyan" ]; then
-            cp -r /home/jovyan/. "/home/$NB_USER/" 2>/dev/null || true
-            chown -R "$NB_UID:$NB_GID" "/home/$NB_USER" || true
-        fi
-    fi
-    
-    # Switch to the user and start jupyter
-    echo "Switching to user $NB_USER and starting jupyterhub-singleuser"
-    exec gosu "$NB_USER" jupyterhub-singleuser "$@"
-else
-    echo "No user mapping provided, starting as jovyan"
-    exec gosu jovyan jupyterhub-singleuser "$@"
+# Run start-notebook.d hooks in background (as the authenticated user, set by SystemUserSpawner --user flag)
+if [ -d "/usr/local/bin/start-notebook.d" ]; then
+    echo "/usr/local/bin/start-singleuser.sh: starting hooks in /usr/local/bin/start-notebook.d in background as uid / gid: $(id -u) / $(id -g)"
+    for hook in /usr/local/bin/start-notebook.d/*; do
+        [ -e "$hook" ] || continue
+        case "$hook" in
+            *.sh)
+                echo "/usr/local/bin/start-singleuser.sh: starting script $hook in background"
+                nohup bash -c ". \"$hook\"" > "/tmp/$(basename $hook).log" 2>&1 &
+                ;;
+            *.py)
+                echo "/usr/local/bin/start-singleuser.sh: starting script $hook in background"
+                nohup python3 "$hook" > "/tmp/$(basename $hook).log" 2>&1 &
+                ;;
+            *)
+                echo "/usr/local/bin/start-singleuser.sh: starting script $hook in background"
+                nohup "$hook" > "/tmp/$(basename $hook).log" 2>&1 &
+                ;;
+        esac
+    done
+    echo "/usr/local/bin/start-singleuser.sh: started all hooks in /usr/local/bin/start-notebook.d in background"
 fi
+
+# Run before-notebook.d hooks (as the authenticated user, set by SystemUserSpawner --user flag)
+if [ -d "/usr/local/bin/before-notebook.d" ]; then
+    echo "/usr/local/bin/start-singleuser.sh: running hooks in /usr/local/bin/before-notebook.d as uid / gid: $(id -u) / $(id -g)"
+    for hook in /usr/local/bin/before-notebook.d/*; do
+        [ -e "$hook" ] || continue
+        case "$hook" in
+            *.sh)
+                echo "/usr/local/bin/start-singleuser.sh: running script $hook"
+                . "$hook"
+                ;;
+            *.py)
+                echo "/usr/local/bin/start-singleuser.sh: running script $hook"
+                python3 "$hook"
+                ;;
+            *)
+                echo "/usr/local/bin/start-singleuser.sh: running script $hook"
+                "$hook"
+                ;;
+        esac
+    done
+    echo "/usr/local/bin/start-singleuser.sh: done running hooks in /usr/local/bin/before-notebook.d"
+fi
+
+# Start jupyterhub-singleuser
+# If first argument is "jupyterhub-singleuser", skip it (it's already in CMD)
+if [ "$1" = "jupyterhub-singleuser" ]; then
+    shift
+fi
+echo "Starting jupyterhub-singleuser $@"
+exec jupyterhub-singleuser "$@"

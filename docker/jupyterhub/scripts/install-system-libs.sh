@@ -29,4 +29,6 @@ apt_install \
     vim \
     alien \
     wget \
-    tmux
+    tmux \
+    cmake \
+    libnsl2
