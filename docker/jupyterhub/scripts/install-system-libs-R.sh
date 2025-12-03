@@ -30,4 +30,6 @@ apt_install \
     liblzma-dev \
     libreadline-dev \
     libudunits2-dev \
+    libmagick++-dev \
+    libleptonica-dev \
     libx11-dev
