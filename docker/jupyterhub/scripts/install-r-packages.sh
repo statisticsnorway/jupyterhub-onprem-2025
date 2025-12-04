@@ -1,13 +1,106 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Use CRAN from env if provided; default to cloud CRAN mirror.
+# Use CRAN from env if provided; default to Posit Package Manager.
 CRAN_URL="${CRAN:-https://packagemanager.posit.co/cran/__linux__/noble/latest}"
+export CRAN="${CRAN_URL}"
 
 echo ">> Using CRAN repo: ${CRAN_URL}"
+
+###############################################################################
+# 1) Ensure pak is installed (used for system requirements)
+###############################################################################
+echo ">> Ensuring 'pak' package is installed"
+Rscript --vanilla - <<'RSCRIPT'
+cran <- Sys.getenv("CRAN", unset = "https://cloud.r-project.org")
+if (!requireNamespace("pak", quietly = TRUE)) {
+  install.packages("pak", repos = cran, dependencies = FALSE)
+}
+RSCRIPT
+
+###############################################################################
+# 2) Install system requirements for all packages via pak::pkg_sysreqs()
+###############################################################################
+echo ">> Resolving and installing system requirements via pak::pkg_sysreqs"
+
+Rscript --vanilla - <<'RSCRIPT' | sh
+cran <- Sys.getenv("CRAN", unset = "https://cloud.r-project.org")
+options(repos = c(CRAN = cran))
+
+# All CRAN packages you later install
+cran_pkgs <- c(
+  "tidyfst",
+  "configr",
+  "DBI",
+  "renv",
+  "leaflet",
+  "getPass",
+  "DT",
+  "rjwsacruncher",
+  "sf",
+  "sfarrow",
+  "dbplyr",
+  "shiny",
+  "rstudioapi",
+  "httr",
+  "readr",
+  "knitr",
+  "rmarkdown",
+  "RCurl",
+  "here",
+  "esquisse",
+  "dcmodify",
+  "simputation",
+  "SmallCountRounding",
+  "klassR",
+  "pxwebapidata",
+  "gissb",
+  "igraph",
+  "dggridR",
+  "languageserver",
+  "lintr",
+  "tidyverse",
+  "openxlsx",
+  "survey",
+  "eurostat",
+  "easySdcTable"
+)
+
+# All GitHub packages you later install
+gh_pkgs <- c(
+  "statisticsnorway/ssb-pris",
+  "statisticsnorway/ssb-GaussSuppression",
+  "statisticsnorway/ssb-fellesr",
+  "statisticsnorway/ssb-kostra",
+  "statisticsnorway/ssb-SdcForetakPerson",
+  "statisticsnorway/ssb-struktuR",
+  "statisticsnorway/ssb-pxwebapidata",
+  "statisticsnorway/ssb-SSBtools",
+  "statisticsnorway/ssb-klassr",
+  "statisticsnorway/GISSB",
+  "statisticsnorway/ReGenesees",
+  "statisticsnorway/ssb-pickmdl"
+)
+
+pkgs <- c(cran_pkgs, gh_pkgs)
+
+# Ask pak for system requirements (for Ubuntu)
+sys <- pak::pkg_sysreqs(pkgs, sysreqs_platform = "ubuntu")
+
+if (!is.null(sys$install_scripts) && length(sys$install_scripts) > 0) {
+  cat(sys$install_scripts, sep = "\n")
+}
+RSCRIPT
+
+###############################################################################
+# 3) Java config (same as your original script)
+###############################################################################
 echo ">> Running R CMD javareconf -e"
 R CMD javareconf -e
 
+###############################################################################
+# 4) Install R packages from CRAN and GitHub
+###############################################################################
 echo ">> Installing R packages from CRAN and GitHub"
 Rscript - <<'RSCRIPT'
 cran <- Sys.getenv("CRAN", unset = "https://cloud.r-project.org")
@@ -77,7 +170,9 @@ remotes::install_github("statisticsnorway/ReGenesees")
 remotes::install_github("statisticsnorway/ssb-pickmdl")
 RSCRIPT
 
-# Ensure IRkernel is installed and registered
+###############################################################################
+# 5) Ensure IRkernel is installed and registered
+###############################################################################
 echo ">> Installing and registering IRkernel"
 Rscript --vanilla - <<'RSCRIPT'
 cran <- Sys.getenv("CRAN", unset = "https://cloud.r-project.org")
