@@ -288,6 +288,22 @@ RUN npm ci || npm install && \
     npm run build && \
     jupyter labextension install . --no-build
 
+# Remove NodeSource Node.js and disable NodeSource repository
+RUN set -eux; \
+    apt-get remove -y nodejs || true; \
+    apt-get autoremove -y; \
+    if [ -f /etc/apt/sources.list.d/nodesource.list ]; then \
+        mv /etc/apt/sources.list.d/nodesource.list \
+           /etc/apt/sources.list.d/nodesource.list.disabled; \
+    fi; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+        nodejs \
+        libnode-dev; \
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/*
+
+
 # Disable unwanted extensions and build Lab once
 RUN set -eux; \
     jupyter labextension disable @jupyterlab/docmanager-extension:download || true; \

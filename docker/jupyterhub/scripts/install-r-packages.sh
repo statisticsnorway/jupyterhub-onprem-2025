@@ -1,72 +1,109 @@
-#!/usr/bin/env bash
-set -euo pipefail
-
-# Use CRAN from env if provided; default to Posit Package Manager.
-CRAN_URL="${CRAN:-https://packagemanager.posit.co/cran/__linux__/noble/latest}"
-export CRAN="${CRAN_URL}"
-
-echo ">> Using CRAN repo: ${CRAN_URL}"
-
-###############################################################################
-# 1) Ensure pak is installed (used for system requirements)
-###############################################################################
-echo ">> Ensuring 'pak' package is installed"
+echo ">> Installing R packages from CRAN and GitHub"
 Rscript --vanilla - <<'RSCRIPT'
-cran <- Sys.getenv("CRAN", unset = "https://cloud.r-project.org")
-if (!requireNamespace("pak", quietly = TRUE)) {
-  install.packages("pak", repos = cran, dependencies = FALSE)
-}
-RSCRIPT
-
-###############################################################################
-# 2) Install system requirements for all packages via pak::pkg_sysreqs()
-###############################################################################
-echo ">> Resolving and installing system requirements via pak::pkg_sysreqs"
-
-Rscript --vanilla - <<'RSCRIPT' | sh
 cran <- Sys.getenv("CRAN", unset = "https://cloud.r-project.org")
 options(repos = c(CRAN = cran))
 
-# All CRAN packages you later install
-cran_pkgs <- c(
-  "tidyfst",
-  "configr",
-  "DBI",
-  "renv",
-  "leaflet",
-  "getPass",
-  "DT",
-  "rjwsacruncher",
-  "sf",
-  "sfarrow",
-  "dbplyr",
-  "shiny",
-  "rstudioapi",
-  "httr",
-  "readr",
-  "knitr",
-  "rmarkdown",
-  "RCurl",
-  "here",
-  "esquisse",
-  "dcmodify",
-  "simputation",
-  "SmallCountRounding",
-  "klassR",
-  "pxwebapidata",
-  "gissb",
-  "igraph",
-  "dggridR",
-  "languageserver",
-  "lintr",
-  "tidyverse",
-  "openxlsx",
-  "survey",
-  "eurostat",
-  "easySdcTable"
+# Helper: install a CRAN package and capture success/failure
+ip <- function(pkg, deps = TRUE) {
+  tryCatch(
+    {
+      install.packages(pkg, repos = cran, dependencies = deps)
+      list(ok = TRUE, msg = "")
+    },
+    error = function(e) list(ok = FALSE, msg = conditionMessage(e))
+  )
+}
+
+# ----------------------------
+# 1) Install CRAN packages (explicit list)
+# ----------------------------
+cran_plan <- list(
+  list("tidyfst",            TRUE),
+  list("configr",            TRUE),
+  list("DBI",                TRUE),
+  list("renv",               TRUE),
+  list("leaflet",            TRUE),
+  list("getPass",            TRUE),
+  list("DT",                 TRUE),
+  list("rjwsacruncher",      TRUE),
+  list("sf",                 TRUE),
+  list("sfarrow",            FALSE),
+  list("dbplyr",             FALSE),
+  list("shiny",              FALSE),
+  list("rstudioapi",         TRUE),
+  list("httr",               TRUE),
+  list("readr",              TRUE),
+  list("knitr",              TRUE),
+  list("rmarkdown",          TRUE),
+  list("RCurl",              TRUE),
+  list("here",               TRUE),
+  list("esquisse",           TRUE),
+  list("dcmodify",           TRUE),
+  list("simputation",        TRUE),
+  list("SmallCountRounding", TRUE),
+  list("klassR",             TRUE),
+  list("pxwebapidata",       TRUE),
+  list("gissb",              TRUE),
+  list("igraph",             TRUE),
+  list("dggridR",            TRUE),
+  list("languageserver",     TRUE),
+  list("lintr",              TRUE),
+  list("tidyverse",          TRUE),
+  list("openxlsx",           TRUE),
+  list("survey",             TRUE),
+  list("eurostat",           TRUE),
+  list("easySdcTable",       TRUE)
 )
 
-# All GitHub packages you later install
+cran_results <- data.frame(
+  pkg = vapply(cran_plan, `[[`, character(1), 1),
+  ok = FALSE,
+  message = NA_character_,
+  stringsAsFactors = FALSE
+)
+
+message(">> Installing CRAN packages")
+for (i in seq_along(cran_plan)) {
+  pkg  <- cran_plan[[i]][[1]]
+  deps <- cran_plan[[i]][[2]]
+  message(">> install.packages('", pkg, "', dependencies = ", deps, ")")
+  res <- ip(pkg, deps = deps)
+  cran_results$ok[i] <- isTRUE(res$ok)
+  if (!res$ok) cran_results$message[i] <- res$msg
+}
+
+# ----------------------------
+# 2) Install ROracle from local tarball if present
+# ----------------------------
+local_pkg <- "/tmp/ROracle_1.4-1_R_x86_64-unknown-linux-gnu.tar.gz"
+roracle_ok <- TRUE
+roracle_msg <- ""
+if (file.exists(local_pkg)) {
+  message(">> Installing local tarball: ", local_pkg)
+  tryCatch(
+    {
+      install.packages(local_pkg, repos = NULL, type = "source")
+    },
+    error = function(e) {
+      roracle_ok <<- FALSE
+      roracle_msg <<- conditionMessage(e)
+    }
+  )
+} else {
+  message(">> Local ROracle tarball not found: skipping")
+}
+
+# ----------------------------
+# 3) Ensure 'remotes' present for GitHub installs
+# ----------------------------
+if (!requireNamespace("remotes", quietly = TRUE)) {
+  message(">> Installing 'remotes' from CRAN")
+  install.packages("remotes", repos = cran)
+}
+
+# ----------------------------
+# 4) Install GitHub packages
+# ----------------------------
 gh_pkgs <- c(
   "statisticsnorway/ssb-pris",
   "statisticsnorway/ssb-GaussSuppression",
@@ -74,7 +111,6 @@ gh_pkgs <- c(
   "statisticsnorway/ssb-kostra",
   "statisticsnorway/ssb-SdcForetakPerson",
   "statisticsnorway/ssb-struktuR",
-  "statisticsnorway/ssb-pxwebapidata",
   "statisticsnorway/ssb-SSBtools",
   "statisticsnorway/ssb-klassr",
   "statisticsnorway/GISSB",
@@ -82,107 +118,74 @@ gh_pkgs <- c(
   "statisticsnorway/ssb-pickmdl"
 )
 
-pkgs <- c(cran_pkgs, gh_pkgs)
+gh_results <- data.frame(
+  repo = gh_pkgs,
+  ok = FALSE,
+  message = NA_character_,
+  stringsAsFactors = FALSE
+)
 
-# Ask pak for system requirements (for Ubuntu)
-sys <- pak::pkg_sysreqs(pkgs, sysreqs_platform = "ubuntu")
-
-if (!is.null(sys$install_scripts) && length(sys$install_scripts) > 0) {
-  cat(sys$install_scripts, sep = "\n")
+message(">> Installing GitHub packages")
+for (i in seq_along(gh_pkgs)) {
+  repo <- gh_pkgs[[i]]
+  message(">> remotes::install_github('", repo, "')")
+  tryCatch(
+    {
+      remotes::install_github(repo, dependencies = TRUE, upgrade = "never")
+      gh_results$ok[i] <- TRUE
+    },
+    error = function(e) {
+      gh_results$ok[i] <- FALSE
+      gh_results$message[i] <- conditionMessage(e)
+    }
+  )
 }
-RSCRIPT
 
-###############################################################################
-# 3) Java config (same as your original script)
-###############################################################################
-echo ">> Running R CMD javareconf -e"
-R CMD javareconf -e
+# ----------------------------
+# 5) Summary (CRAN + GitHub + local)
+# ----------------------------
+cran_total <- nrow(cran_results)
+cran_ok_n  <- sum(cran_results$ok)
+cran_fail  <- cran_results[!cran_results$ok, , drop = FALSE]
 
-###############################################################################
-# 4) Install R packages from CRAN and GitHub
-###############################################################################
-echo ">> Installing R packages from CRAN and GitHub"
-Rscript - <<'RSCRIPT'
-cran <- Sys.getenv("CRAN", unset = "https://cloud.r-project.org")
+gh_total <- nrow(gh_results)
+gh_ok_n  <- sum(gh_results$ok)
+gh_fail  <- gh_results[!gh_results$ok, , drop = FALSE]
 
-ip <- function(pkg, deps = TRUE) install.packages(pkg, repos = cran, dependencies = deps)
+message("")
+message(">> CRAN install summary: ", cran_ok_n, "/", cran_total, " packages installed successfully.")
+if (nrow(cran_fail) > 0) {
+  message(">> Failed CRAN packages:")
+  for (i in seq_len(nrow(cran_fail))) {
+    msg <- cran_fail$message[i]
+    if (is.na(msg) || !nzchar(msg)) msg <- "(no error message captured)"
+    message(" - ", cran_fail$pkg[i], ": ", msg)
+  }
+}
 
-# --- CRAN packages ---
-ip("tidyfst",            deps = TRUE)
-ip("configr",            deps = TRUE)
-ip("DBI",                deps = TRUE)
-ip("renv",               deps = TRUE)
-ip("leaflet",            deps = TRUE)
-ip("getPass",            deps = TRUE)
-ip("DT",                 deps = TRUE)
-ip("rjwsacruncher",      deps = TRUE)
-ip("sf",                 deps = TRUE)
-ip("sfarrow",            deps = FALSE)
-ip("dbplyr",             deps = FALSE)
-ip("shiny",              deps = FALSE)
-ip("rstudioapi",         deps = TRUE)
-ip("httr",               deps = TRUE)
-ip("readr",              deps = TRUE)
-ip("knitr",              deps = TRUE)
-ip("rmarkdown",          deps = TRUE)
-ip("RCurl",              deps = TRUE)
-ip("here",               deps = TRUE)
-ip("esquisse",           deps = TRUE)
-ip("dcmodify",           deps = TRUE)
-ip("simputation",        deps = TRUE)
-ip("SmallCountRounding", deps = TRUE)
-ip("klassR",             deps = TRUE)
-ip("pxwebapidata",       deps = TRUE)
-ip("gissb",              deps = TRUE)
-ip("igraph",             deps = TRUE)
-ip("dggridR",            deps = TRUE)
-ip("languageserver",     deps = TRUE)
-ip("lintr",              deps = TRUE)
-ip("tidyverse",          deps = TRUE)
-ip("openxlsx",           deps = TRUE)
-ip("survey",             deps = TRUE)
-ip("eurostat",           deps = TRUE)
-ip("easySdcTable",       deps = TRUE)
+message("")
+message(">> GitHub install summary: ", gh_ok_n, "/", gh_total, " repositories installed successfully.")
+if (nrow(gh_fail) > 0) {
+  message(">> Failed GitHub repositories:")
+  for (i in seq_len(nrow(gh_fail))) {
+    msg <- gh_fail$message[i]
+    if (is.na(msg) || !nzchar(msg)) msg <- "(no error message captured)"
+    message(" - ", gh_fail$repo[i], ": ", msg)
+  }
+}
 
-# Install ROracle from local tarball if present
-local_pkg <- '/tmp/ROracle_1.4-1_R_x86_64-unknown-linux-gnu.tar.gz'
+message("")
 if (file.exists(local_pkg)) {
-  install.packages(local_pkg, repos = NULL, type = 'source')
+  if (roracle_ok) {
+    message(">> Local install summary: ROracle installed successfully.")
+  } else {
+    message(">> Local install summary: ROracle FAILED: ", roracle_msg)
+  }
+} else {
+  message(">> Local install summary: ROracle tarball not present (skipped).")
 }
 
-# Ensure 'remotes' present for GitHub installs
-if (!requireNamespace("remotes", quietly = TRUE)) {
-  install.packages("remotes", repos = cran)
-}
-
-# --- GitHub packages ---
-remotes::install_github("statisticsnorway/ssb-pris")
-remotes::install_github("statisticsnorway/ssb-GaussSuppression")
-remotes::install_github("statisticsnorway/ssb-fellesr")
-remotes::install_github("statisticsnorway/ssb-kostra")
-remotes::install_github("statisticsnorway/ssb-SdcForetakPerson")
-remotes::install_github("statisticsnorway/ssb-struktuR")
-remotes::install_github("statisticsnorway/ssb-pxwebapidata")
-remotes::install_github("statisticsnorway/ssb-SSBtools")
-remotes::install_github("statisticsnorway/ssb-klassr")
-remotes::install_github("statisticsnorway/GISSB")
-remotes::install_github("statisticsnorway/ReGenesees")
-remotes::install_github("statisticsnorway/ssb-pickmdl")
+# Exit non-zero if anything failed
+any_fail <- (nrow(cran_fail) > 0) || (nrow(gh_fail) > 0) || (file.exists(local_pkg) && !roracle_ok)
+if (any_fail) quit(status = 1)
 RSCRIPT
-
-###############################################################################
-# 5) Ensure IRkernel is installed and registered
-###############################################################################
-echo ">> Installing and registering IRkernel"
-Rscript --vanilla - <<'RSCRIPT'
-cran <- Sys.getenv("CRAN", unset = "https://cloud.r-project.org")
-if (!requireNamespace("IRkernel", quietly = TRUE)) {
-  install.packages("IRkernel", repos = cran, dependencies = TRUE)
-}
-# Register kernel spec in the conda share path used by our image
-try({
-  IRkernel::installspec(name = "ir", displayname = "R", user = FALSE)
-}, silent = TRUE)
-RSCRIPT
-
-echo ">> R package installation complete."
