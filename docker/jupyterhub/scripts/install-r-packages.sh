@@ -66,10 +66,13 @@ message(">> Installing CRAN packages")
 for (i in seq_along(cran_plan)) {
   pkg  <- cran_plan[[i]][[1]]
   deps <- cran_plan[[i]][[2]]
-  message(">> install.packages('", pkg, "', dependencies = ", deps, ")")
+  message(">> [", i, "/", length(cran_plan), "] install.packages('", pkg, "', dependencies = ", deps, ")")
+  flush.console()
   res <- ip(pkg, deps = deps)
   cran_results$ok[i] <- isTRUE(res$ok)
   if (!res$ok) cran_results$message[i] <- res$msg
+  message(">> [", i, "/", length(cran_plan), "] ", pkg, ": ", if (res$ok) "OK" else "FAILED")
+  flush.console()
 }
 
 # ----------------------------
@@ -80,15 +83,19 @@ roracle_ok <- TRUE
 roracle_msg <- ""
 if (file.exists(local_pkg)) {
   message(">> Installing local tarball: ", local_pkg)
+  flush.console()
   tryCatch(
     {
       install.packages(local_pkg, repos = NULL, type = "source")
+      message(">> ROracle installation: OK")
     },
     error = function(e) {
       roracle_ok <<- FALSE
       roracle_msg <<- conditionMessage(e)
+      message(">> ROracle installation: FAILED")
     }
   )
+  flush.console()
 } else {
   message(">> Local ROracle tarball not found: skipping")
 }
@@ -128,17 +135,21 @@ gh_results <- data.frame(
 message(">> Installing GitHub packages")
 for (i in seq_along(gh_pkgs)) {
   repo <- gh_pkgs[[i]]
-  message(">> remotes::install_github('", repo, "')")
+  message(">> [", i, "/", length(gh_pkgs), "] remotes::install_github('", repo, "')")
+  flush.console()
   tryCatch(
     {
       remotes::install_github(repo, dependencies = TRUE, upgrade = "never")
       gh_results$ok[i] <<- TRUE
+      message(">> [", i, "/", length(gh_pkgs), "] ", repo, ": OK")
     },
     error = function(e) {
       gh_results$ok[i] <<- FALSE
       gh_results$message[i] <<- conditionMessage(e)
+      message(">> [", i, "/", length(gh_pkgs), "] ", repo, ": FAILED")
     }
   )
+  flush.console()
 }
 
 # ----------------------------
@@ -187,5 +198,13 @@ if (file.exists(local_pkg)) {
 
 # Exit non-zero if anything failed
 any_fail <- (nrow(cran_fail) > 0) || (nrow(gh_fail) > 0) || (file.exists(local_pkg) && !roracle_ok)
-if (any_fail) quit(status = 1)
+message("")
+message(">> R package installation script completed.")
+if (any_fail) {
+  message(">> Exiting with status 1 due to failures.")
+  quit(status = 1)
+} else {
+  message(">> Exiting with status 0 (success).")
+  quit(status = 0)
+}
 RSCRIPT
