@@ -132,11 +132,11 @@ for (i in seq_along(gh_pkgs)) {
   tryCatch(
     {
       remotes::install_github(repo, dependencies = TRUE, upgrade = "never")
-      gh_results$ok[i] <- TRUE
+      gh_results$ok[i] <<- TRUE
     },
     error = function(e) {
-      gh_results$ok[i] <- FALSE
-      gh_results$message[i] <- conditionMessage(e)
+      gh_results$ok[i] <<- FALSE
+      gh_results$message[i] <<- conditionMessage(e)
     }
   )
 }
