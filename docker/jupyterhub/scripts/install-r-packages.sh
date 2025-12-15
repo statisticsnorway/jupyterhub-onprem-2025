@@ -3,6 +3,8 @@ Rscript --vanilla - <<'RSCRIPT'
 cran <- Sys.getenv("CRAN", unset = "https://cloud.r-project.org")
 options(repos = c(CRAN = cran))
 
+message(">> NOTE: This installer runs in LOG-ONLY mode; failures do NOT fail the image build.")
+
 # Helper: install a CRAN package and capture success/failure
 ip <- function(pkg, deps = TRUE) {
   tryCatch(
@@ -72,6 +74,7 @@ for (i in seq_along(cran_plan)) {
   cran_results$ok[i] <- isTRUE(res$ok)
   if (!res$ok) cran_results$message[i] <- res$msg
   message(">> [", i, "/", length(cran_plan), "] ", pkg, ": ", if (res$ok) "OK" else "FAILED")
+  if (!res$ok) message(">>    Error: ", res$msg)
   flush.console()
 }
 
@@ -81,20 +84,21 @@ for (i in seq_along(cran_plan)) {
 local_pkg <- "/tmp/ROracle_1.4-1_R_x86_64-unknown-linux-gnu.tar.gz"
 roracle_ok <- TRUE
 roracle_msg <- ""
+
 if (file.exists(local_pkg)) {
   message(">> Installing local tarball: ", local_pkg)
   flush.console()
-  tryCatch(
+  res <- tryCatch(
     {
       install.packages(local_pkg, repos = NULL, type = "source")
-      message(">> ROracle installation: OK")
+      list(ok = TRUE, msg = "")
     },
-    error = function(e) {
-      roracle_ok <<- FALSE
-      roracle_msg <<- conditionMessage(e)
-      message(">> ROracle installation: FAILED")
-    }
+    error = function(e) list(ok = FALSE, msg = conditionMessage(e))
   )
+  roracle_ok <- isTRUE(res$ok)
+  roracle_msg <- res$msg
+  message(">> ROracle installation: ", if (roracle_ok) "OK" else "FAILED")
+  if (!roracle_ok) message(">>    Error: ", roracle_msg)
   flush.console()
 } else {
   message(">> Local ROracle tarball not found: skipping")
@@ -105,11 +109,20 @@ if (file.exists(local_pkg)) {
 # ----------------------------
 if (!requireNamespace("remotes", quietly = TRUE)) {
   message(">> Installing 'remotes' from CRAN")
-  install.packages("remotes", repos = cran)
+  # log-only: don't fail if remotes fails
+  tryCatch(
+    {
+      install.packages("remotes", repos = cran)
+      message(">> remotes: OK")
+    },
+    error = function(e) {
+      message(">> remotes: FAILED: ", conditionMessage(e))
+    }
+  )
 }
 
 # ----------------------------
-# 4) Install GitHub packages
+# 4) Install GitHub packages (robust + log-only)
 # ----------------------------
 gh_pkgs <- c(
   "statisticsnorway/ssb-pris",
@@ -132,23 +145,45 @@ gh_results <- data.frame(
   stringsAsFactors = FALSE
 )
 
+gh_token <- Sys.getenv("GITHUB_PAT", unset = "")
+if (!nzchar(gh_token)) {
+  message(">> NOTE: GITHUB_PAT not set. Public GitHub installs may be rate-limited; private repos will fail.")
+}
+
 message(">> Installing GitHub packages")
 for (i in seq_along(gh_pkgs)) {
   repo <- gh_pkgs[[i]]
   message(">> [", i, "/", length(gh_pkgs), "] remotes::install_github('", repo, "')")
   flush.console()
-  tryCatch(
+
+  # If 'remotes' is missing, log and skip (do not fail)
+  if (!requireNamespace("remotes", quietly = TRUE)) {
+    gh_results$ok[i] <- FALSE
+    gh_results$message[i] <- "Package 'remotes' is not available; skipping GitHub installs."
+    message(">> [", i, "/", length(gh_pkgs), "] ", repo, ": SKIPPED (remotes missing)")
+    message(">>    Error: ", gh_results$message[i])
+    flush.console()
+    next
+  }
+
+  res <- tryCatch(
     {
-      remotes::install_github(repo, dependencies = TRUE, upgrade = "never")
-      gh_results$ok[i] <<- TRUE
-      message(">> [", i, "/", length(gh_pkgs), "] ", repo, ": OK")
+      remotes::install_github(
+        repo,
+        dependencies = TRUE,
+        upgrade = "never",
+        auth_token = if (nzchar(gh_token)) gh_token else NULL
+      )
+      list(ok = TRUE, msg = "")
     },
-    error = function(e) {
-      gh_results$ok[i] <<- FALSE
-      gh_results$message[i] <<- conditionMessage(e)
-      message(">> [", i, "/", length(gh_pkgs), "] ", repo, ": FAILED")
-    }
+    error = function(e) list(ok = FALSE, msg = conditionMessage(e))
   )
+
+  gh_results$ok[i] <- isTRUE(res$ok)
+  if (!res$ok) gh_results$message[i] <- res$msg
+
+  message(">> [", i, "/", length(gh_pkgs), "] ", repo, ": ", if (res$ok) "OK" else "FAILED")
+  if (!res$ok) message(">>    Error: ", res$msg)
   flush.console()
 }
 
@@ -196,15 +231,24 @@ if (file.exists(local_pkg)) {
   message(">> Local install summary: ROracle tarball not present (skipped).")
 }
 
-# Exit non-zero if anything failed
-any_fail <- (nrow(cran_fail) > 0) || (nrow(gh_fail) > 0) || (file.exists(local_pkg) && !roracle_ok)
+# ----------------------------
+# 6) Final status (log-only, never fail build)
+# ----------------------------
 message("")
-message(">> R package installation script completed.")
-if (any_fail) {
-  message(">> Exiting with status 1 due to failures.")
-  quit(status = 1)
-} else {
-  message(">> Exiting with status 0 (success).")
-  quit(status = 0)
+message(">> R package installation script completed (log-only).")
+
+if (nrow(cran_fail) > 0) {
+  message(">> WARNING: Some CRAN packages failed to install (non-fatal).")
 }
+
+if (nrow(gh_fail) > 0) {
+  message(">> WARNING: Some GitHub repositories failed to install (non-fatal).")
+}
+
+if (file.exists(local_pkg) && !roracle_ok) {
+  message(">> WARNING: Local ROracle installation failed (non-fatal).")
+}
+
+message(">> Exiting with status 0 (log-only mode).")
+quit(status = 0)
 RSCRIPT
