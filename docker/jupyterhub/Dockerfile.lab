@@ -288,7 +288,22 @@ RUN npm ci || npm install && \
     npm run build && \
     jupyter labextension install . --no-build
 
+# Disable unwanted extensions and build Lab once
+# Note: This must be done before removing NodeSource Node.js, as JupyterLab requires nodejs >=20.0.0
+RUN set -eux; \
+    jupyter labextension disable @jupyterlab/docmanager-extension:download || true; \
+    jupyter labextension disable @jupyterlab/filebrowser-extension:download || true; \
+    jupyter labextension disable @jupyterlab/extensionmanager-extension || true; \
+    jupyter labextension disable "@jupyterlab/apputils-extension:announcements" || true; \
+    jupyter labextension disable "@jupyterlab/apputils-extension:layout" || true; \
+    jupyter labextension disable jupyterlab-dash || true; \
+    jupyter labextension disable "@dask/dask-labextension:plugin" || true; \
+    jupyter labextension disable "@dask/gateway-extension:plugin" || true; \
+    jupyter labextension disable "jupyterlab-kubernetes:plugin" || true; \
+    jupyter lab build
+
 # Remove NodeSource Node.js and disable NodeSource repository
+# This is done after building JupyterLab, which requires nodejs >=20.0.0
 RUN set -eux; \
     apt-get remove -y nodejs || true; \
     apt-get autoremove -y; \
@@ -302,20 +317,6 @@ RUN set -eux; \
         libnode-dev; \
     apt-get clean; \
     rm -rf /var/lib/apt/lists/*
-
-
-# Disable unwanted extensions and build Lab once
-RUN set -eux; \
-    jupyter labextension disable @jupyterlab/docmanager-extension:download || true; \
-    jupyter labextension disable @jupyterlab/filebrowser-extension:download || true; \
-    jupyter labextension disable @jupyterlab/extensionmanager-extension || true; \
-    jupyter labextension disable "@jupyterlab/apputils-extension:announcements" || true; \
-    jupyter labextension disable "@jupyterlab/apputils-extension:layout" || true; \
-    jupyter labextension disable jupyterlab-dash || true; \
-    jupyter labextension disable "@dask/dask-labextension:plugin" || true; \
-    jupyter labextension disable "@dask/gateway-extension:plugin" || true; \
-    jupyter labextension disable "jupyterlab-kubernetes:plugin" || true; \
-    jupyter lab build
 
 WORKDIR ${WORKSPACE_DIR}
 
