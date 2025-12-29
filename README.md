@@ -37,6 +37,11 @@ docker compose -f docker/jupyterhub/docker-compose.yml up -d
 
 The Hub exposes ports 443 and 8080 (see `docker/jupyterhub/docker-compose.yml`).
 
+### 3) Local testing of JupyterLab
+If you want to run this locally and test the Lab image, you can do it with the following command:
+```bash
+docker run -it --rm -p 8888:8888 --entrypoint="" jupyterhub-onprem-lab jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root
+```
 ## Key Configuration
 
 ### Authentication and Spawner
