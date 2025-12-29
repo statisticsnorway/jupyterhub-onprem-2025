@@ -289,6 +289,7 @@ RUN npm ci || npm install && \
     jupyter labextension install . --no-build
 
 # Disable unwanted extensions and build Lab once
+# Note: This must be done before removing NodeSource Node.js, as JupyterLab requires nodejs >=20.0.0
 RUN set -eux; \
     jupyter labextension disable @jupyterlab/docmanager-extension:download || true; \
     jupyter labextension disable @jupyterlab/filebrowser-extension:download || true; \
@@ -300,6 +301,22 @@ RUN set -eux; \
     jupyter labextension disable "@dask/gateway-extension:plugin" || true; \
     jupyter labextension disable "jupyterlab-kubernetes:plugin" || true; \
     jupyter lab build
+
+# Remove NodeSource Node.js and disable NodeSource repository
+# This is done after building JupyterLab, which requires nodejs >=20.0.0
+RUN set -eux; \
+    apt-get remove -y nodejs || true; \
+    apt-get autoremove -y; \
+    if [ -f /etc/apt/sources.list.d/nodesource.list ]; then \
+        mv /etc/apt/sources.list.d/nodesource.list \
+           /etc/apt/sources.list.d/nodesource.list.disabled; \
+    fi; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+        nodejs \
+        libnode-dev; \
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR ${WORKSPACE_DIR}
 

@@ -30,6 +30,7 @@ on:
       - '.github/workflows/docker-build-pipeline.yml'
 
 env:
+  REGISTRY_HOST: europe-north1-docker.pkg.dev
   REGISTRY: europe-north1-docker.pkg.dev/${{ secrets.GAR_PROJECT_ID }}
   IMAGE_NAME_LAB: onprem-jupyterlab # TODO: set this to your preferred image name
   IMAGE_NAME_HUB: onprem-jupyterhub # TODO: set this to your preferred image name
@@ -58,19 +59,19 @@ jobs:
         workload_identity_provider: "projects/${{ secrets.GAR_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions/providers/gh-actions"
         service_account: "gh-actions-${{ env.TEAM_NAME}}@${{ secrets.GAR_PROJECT_ID }}.iam.gserviceaccount.com"
         token_format: access_token
+        create_credentials_file: true
+
+    - name: Setup gcloud
+      uses: google-github-actions/setup-gcloud@v2
+
+    - name: Configure docker auth helper
+      run: gcloud auth configure-docker ${{ env.REGISTRY_HOST }} --quiet
 
     - name: Set up Docker Buildx
       id: buildx
       uses: docker/setup-buildx-action@v3
       with:
         version: v0.29.1
-
-    - name: Login to Artifact Registry
-      uses: docker/login-action@v3
-      with:
-        registry: ${{ env.REGISTRY }}
-        username: "oauth2accesstoken"
-        password: "${{ steps.auth.outputs.access_token }}"
 
     - name: Extract build metadata for Docker
       id: build_metadata
@@ -119,19 +120,19 @@ jobs:
         workload_identity_provider: "projects/${{ secrets.GAR_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions/providers/gh-actions"
         service_account: "gh-actions-${{ env.TEAM_NAME}}@${{ secrets.GAR_PROJECT_ID }}.iam.gserviceaccount.com"
         token_format: access_token
+        create_credentials_file: true
+
+    - name: Setup gcloud
+      uses: google-github-actions/setup-gcloud@v2
+
+    - name: Configure docker auth helper
+      run: gcloud auth configure-docker ${{ env.REGISTRY_HOST }} --quiet
 
     - name: Set up Docker Buildx
       id: buildx
       uses: docker/setup-buildx-action@v3
       with:
         version: v0.29.1
-
-    - name: Login to Artifact Registry
-      uses: docker/login-action@v3
-      with:
-        registry: ${{ env.REGISTRY }}
-        username: "oauth2accesstoken"
-        password: "${{ steps.auth.outputs.access_token }}"
 
     - name: Extract build metadata for Docker
       id: build_metadata
