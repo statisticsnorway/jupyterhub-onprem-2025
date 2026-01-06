@@ -188,7 +188,19 @@ for (i in seq_along(gh_pkgs)) {
 }
 
 # ----------------------------
-# 5) Summary (CRAN + GitHub + local)
+# 5) Install and register IRkernel
+# ----------------------------
+message(">> Installing and registering IRkernel")
+try({
+  if (!requireNamespace("IRkernel", quietly = TRUE)) {
+    install.packages("IRkernel", repos = cran, dependencies = TRUE)
+  }
+  IRkernel::installspec(name = "ir", displayname = "R", user = FALSE)
+  message(">> IRkernel: OK")
+}, silent = TRUE)
+
+# ----------------------------
+# 6) Summary (CRAN + GitHub + local)
 # ----------------------------
 cran_total <- nrow(cran_results)
 cran_ok_n  <- sum(cran_results$ok)
@@ -232,7 +244,7 @@ if (file.exists(local_pkg)) {
 }
 
 # ----------------------------
-# 6) Final status (log-only, never fail build)
+# 7) Final status (log-only, never fail build)
 # ----------------------------
 message("")
 message(">> R package installation script completed (log-only).")
