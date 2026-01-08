@@ -32,4 +32,6 @@ apt_install \
     libudunits2-dev \
     libmagick++-dev \
     libleptonica-dev \
-    libx11-dev
+    libx11-dev \
+    libtesseract-dev \
+    tesseract-ocr-eng 
