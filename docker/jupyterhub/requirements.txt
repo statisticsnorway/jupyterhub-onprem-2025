@@ -3,4 +3,4 @@ nbstripout==0.8.2
 poetry==2.2.1
 cruft[pyproject]==2.16.0
 nox==2025.11.12
-uv<=0.9.18
+uv<=0.9.28
