@@ -345,8 +345,7 @@ COPY ./kernels/python3 /opt/conda/share/jupyter/kernels/python3/
 RUN chmod +x /opt/conda/share/jupyter/kernels/python3/python.sh
 RUN chmod +x /opt/conda/share/jupyter/kernels/ir/r.sh
 
-# Marimo: ensure executable and override proxy to use "python3 -m marimo" (avoids Permission denied when running as host user)
-RUN chmod 755 /opt/conda/bin/marimo
+# Marimo: override proxy to use "python3 -m marimo" (avoids Permission denied when running as host user)
 RUN mkdir -p /opt/conda/etc/jupyter/jupyter_server_config.d
 COPY ./jupyter_server_config.d/50-marimo-proxy.py /opt/conda/etc/jupyter/jupyter_server_config.d/50-marimo-proxy.py
 
