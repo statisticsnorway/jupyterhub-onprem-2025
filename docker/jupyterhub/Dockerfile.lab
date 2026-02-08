@@ -345,6 +345,11 @@ COPY ./kernels/python3 /opt/conda/share/jupyter/kernels/python3/
 RUN chmod +x /opt/conda/share/jupyter/kernels/python3/python.sh
 RUN chmod +x /opt/conda/share/jupyter/kernels/ir/r.sh
 
+# Marimo: ensure executable and override proxy to use "python3 -m marimo" (avoids Permission denied when running as host user)
+RUN chmod 755 /opt/conda/bin/marimo
+RUN mkdir -p /opt/conda/etc/jupyter/jupyter_server_config.d
+COPY ./jupyter_server_config.d/50-marimo-proxy.py /opt/conda/etc/jupyter/jupyter_server_config.d/50-marimo-proxy.py
+
 # trying to fix websockets issue and adding runtime dir inside of the container
 RUN mkdir -p /tmp/jupyter-runtime && chmod 1777 /tmp/jupyter-runtime
 
