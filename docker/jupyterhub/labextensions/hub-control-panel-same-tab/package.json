@@ -14,7 +14,7 @@
   },
   "devDependencies": {
     "@jupyterlab/application": "4.4.10",
-    "@jupyterlab/mainmenu": "4.4.10",
+    "@jupyterlab/mainmenu": "4.5.2",
     "@jupyterlab/builder": "^4.2.0",
     "@types/node": "^20.11.0",
     "rimraf": "^5.0.5",
