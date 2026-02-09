@@ -242,7 +242,10 @@ RUN /opt/scripts/install-jupyterlab.sh && \
     python3 -m pip install click && \
     python3 -m pip install papermill && \
     python3 -m pip install ipywidgets && \
+    python3 -m pip install --requirement /tmp/requirements.txt && \
     python3 -m pip install jupyter-server-proxy && \
+    python3 -m pip install 'marimo>=0.6.21' && \
+    python3 -m pip install jupyter-marimo-proxy && \
     python3 -m pip install pyviz_comms && \
     python3 -m pip install panel && \
     python3 -m pip install plotly && \
@@ -261,11 +264,10 @@ RUN /opt/scripts/install-jupyterlab.sh && \
     python3 -m pip install pytest pytest_tornasync pytest-cov pytest-mock pre-commit-hooks jupyterlab-code-formatter black[jupyter] isort && \
     python3 -m pip install pyjstat xmltodict lxml holidays PyGithub pre-commit pyminizip rich openpyxl pyarrow python-dotenv && \
     python3 -m pip install venv-pack nbdev && \
-    python3 -m pip install cx-Oracle && \
+    python3 -m pip install oracledb && \
     python3 -m pip install saspy && \
     python3 -m pip install ipydatagrid && \
     python3 -m pip install dash && \
-    python3 -m pip install --requirement /tmp/requirements.txt && \
     python3 -m pip cache purge || true
 
 RUN python -m pip install pipx && \
