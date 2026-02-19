@@ -147,6 +147,12 @@ c.DockerSpawner.environment.update({
     "JUPYTER_RUNTIME_DIR": "/tmp/jupyter-runtime",
     "JUPYTER_PLATFORM_DIRS": "1",
 })
+
+# marimo-jupyter-extension runtime configuration:
+# - Use a wrapper that selects Poetry venv when available in the current project.
+# - This keeps marimo imports aligned with packages added via `poetry add`.
+c.MarimoProxyConfig.marimo_path = "/usr/local/bin/marimo-launch"
+c.MarimoProxyConfig.timeout = 120
 # -------------------------------------------------------------------
 # Extra args to enforce single-user server config across all spawns
 # -------------------------------------------------------------------
