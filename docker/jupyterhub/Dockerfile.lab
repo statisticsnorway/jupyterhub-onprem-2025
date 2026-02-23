@@ -310,10 +310,13 @@ RUN set -eux; \
 RUN set -eux; \
     apt-get remove -y nodejs || true; \
     apt-get autoremove -y; \
-    if [ -f /etc/apt/sources.list.d/nodesource.list ]; then \
-        mv /etc/apt/sources.list.d/nodesource.list \
-           /etc/apt/sources.list.d/nodesource.list.disabled; \
-    fi; \
+    for source_file in \
+        /etc/apt/sources.list.d/nodesource.list \
+        /etc/apt/sources.list.d/nodesource.sources; do \
+        if [ -f "${source_file}" ]; then \
+            mv "${source_file}" "${source_file}.disabled"; \
+        fi; \
+    done; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
         nodejs \
