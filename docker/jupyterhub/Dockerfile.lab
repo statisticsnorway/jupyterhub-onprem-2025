@@ -127,7 +127,7 @@ ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
 
 # Apache Arrow configuration
-ARG ARROW_VERSION="18.1.0"
+ARG ARROW_VERSION="23.0.0"
 ENV ARROW_VERSION=${ARROW_VERSION}
 
 # Use RStudio's package manager to download packages as binaries
@@ -201,6 +201,7 @@ RUN apt-get update -y && \
      iputils-ping \
      build-essential \
      pandoc \
+     python3-dev \
      && apt-get clean \
      && rm -rf /var/lib/apt/lists/*
 
@@ -244,8 +245,8 @@ RUN /opt/scripts/install-jupyterlab.sh && \
     python3 -m pip install ipywidgets && \
     python3 -m pip install --requirement /tmp/requirements.txt && \
     python3 -m pip install jupyter-server-proxy && \
-    python3 -m pip install 'marimo>=0.6.21' && \
-    python3 -m pip install jupyter-marimo-proxy && \
+    # python3 -m pip install 'marimo[sandbox]>=0.19.11' && \
+    # python3 -m pip install marimo-jupyter-extension && \
     python3 -m pip install pyviz_comms && \
     python3 -m pip install panel && \
     python3 -m pip install plotly && \
@@ -309,10 +310,13 @@ RUN set -eux; \
 RUN set -eux; \
     apt-get remove -y nodejs || true; \
     apt-get autoremove -y; \
-    if [ -f /etc/apt/sources.list.d/nodesource.list ]; then \
-        mv /etc/apt/sources.list.d/nodesource.list \
-           /etc/apt/sources.list.d/nodesource.list.disabled; \
-    fi; \
+    for source_file in \
+        /etc/apt/sources.list.d/nodesource.list \
+        /etc/apt/sources.list.d/nodesource.sources; do \
+        if [ -f "${source_file}" ]; then \
+            mv "${source_file}" "${source_file}.disabled"; \
+        fi; \
+    done; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
         nodejs \
@@ -430,6 +434,30 @@ RUN pip config set global.index https://pypi.org/pypi --global && \
 # Copy start-singleuser.sh (similar to docker-stacks) to handle hooks and user switching
 COPY ./start-singleuser.sh /usr/local/bin/start-singleuser.sh
 RUN chmod 0755 /usr/local/bin/start-singleuser.sh
+
+# Wrapper used by marimo-jupyter-extension.
+# Prefer project Poetry virtualenv so packages installed with `poetry add` are
+# immediately available in marimo when running inside the same project.
+RUN cat >/usr/local/bin/marimo-launch <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+[ -f "$HOME/.bashrc" ] && source "$HOME/.bashrc"
+
+# If marimo is opened on a concrete file, run from that directory so Poetry
+# picks the correct pyproject.toml.
+if [ "${1:-}" = "edit" ] && [ -n "${2:-}" ]; then
+  notebook_dir="$(dirname "$2")"
+  [ -d "$notebook_dir" ] && cd "$notebook_dir"
+fi
+
+if command -v poetry >/dev/null 2>&1 && [ -f "pyproject.toml" ]; then
+  exec poetry run marimo "$@"
+fi
+
+exec /opt/conda/bin/python -m marimo "$@"
+EOF
+RUN chmod 0755 /usr/local/bin/marimo-launch
 
 USER root
 ENTRYPOINT ["/usr/local/bin/start-singleuser.sh"]
