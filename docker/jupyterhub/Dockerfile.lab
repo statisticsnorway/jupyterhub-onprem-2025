@@ -245,8 +245,8 @@ RUN /opt/scripts/install-jupyterlab.sh && \
     python3 -m pip install ipywidgets && \
     python3 -m pip install --requirement /tmp/requirements.txt && \
     python3 -m pip install jupyter-server-proxy && \
-    python3 -m pip install 'marimo[sandbox]>=0.19.11' && \
-    python3 -m pip install marimo-jupyter-extension && \
+    # python3 -m pip install 'marimo[sandbox]>=0.19.11' && \
+    # python3 -m pip install marimo-jupyter-extension && \
     python3 -m pip install pyviz_comms && \
     python3 -m pip install panel && \
     python3 -m pip install plotly && \
