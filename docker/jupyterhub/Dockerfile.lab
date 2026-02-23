@@ -202,6 +202,7 @@ RUN apt-get update -y && \
      build-essential \
      pandoc \
      python3-dev \
+     libffi-dev \
      && apt-get clean \
      && rm -rf /var/lib/apt/lists/*
 
@@ -267,6 +268,9 @@ RUN /opt/scripts/install-jupyterlab.sh && \
     python3 -m pip install venv-pack nbdev && \
     python3 -m pip install oracledb && \
     python3 -m pip install saspy && \
+    python3 -m pip install poetry-plugin-export && \
+    python3 -m pip install nox-poetry && \
+    python3 -m pip install poetry-plugin-shell && \
     python3 -m pip install ipydatagrid && \
     python3 -m pip install dash && \
     python3 -m pip cache purge || true
