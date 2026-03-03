@@ -44,7 +44,7 @@ cran_plan <- list(
   list("simputation",        TRUE),
   list("SmallCountRounding", TRUE),
   list("klassR",             TRUE),
-  list("pxwebapidata",       TRUE),
+  list("PxWebApiData",       TRUE),
   list("gissb",              TRUE),
   list("igraph",             TRUE),
   list("dggridR",            TRUE),

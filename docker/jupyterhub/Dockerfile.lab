@@ -209,7 +209,7 @@ ENV CONDA_DIR=${CONDA_DIR}
 ENV PATH="${CONDA_DIR}/bin:${PATH}"
 
 # Install miniconda
-RUN curl -L https://repo.anaconda.com/miniconda/Miniconda3-py${PYTHON_VERSION}_25.9.1-3-Linux-x86_64.sh -o conda-python.sh && \
+RUN curl -L https://repo.anaconda.com/miniconda/Miniconda3-py${PYTHON_VERSION}_25.11.1-1-Linux-x86_64.sh -o conda-python.sh && \
     chmod +x conda-python.sh && \
     ./conda-python.sh -b -p $CONDA_DIR && \
     rm -f conda-python.sh
@@ -254,7 +254,7 @@ RUN /opt/scripts/install-jupyterlab.sh && \
     python3 -m pip install descartes && \
     python3 -m pip install jupyter-dash && \
     python3 -m pip install jupyterlab-lsp && \
-    python3 -m pip install python-language-server[all] && \
+    python3 -m pip install python-lsp-server[all] && \
     python3 -m pip install ipysheet && \
     python3 -m pip install fuzzywuzzy[speedup] && \
     python3 -m pip install jupyter-resource-usage && \
@@ -271,6 +271,8 @@ RUN /opt/scripts/install-jupyterlab.sh && \
     python3 -m pip install poetry-plugin-shell && \
     python3 -m pip install ipydatagrid && \
     python3 -m pip install dash && \
+    python3 -m pip uninstall -y chardet && \
+    python3 -m pip check || true && \
     python3 -m pip cache purge || true
 
 RUN python -m pip install pipx && \
