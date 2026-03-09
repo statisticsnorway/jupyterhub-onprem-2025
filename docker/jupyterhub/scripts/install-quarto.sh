@@ -19,12 +19,12 @@ rm -f /tmp/quarto.deb
 TINYTEX_DIR=/opt/TinyTeX
 mkdir -p "$TINYTEX_DIR"
 
-# Use the stable GitHub URL (no expiring signed URL)
-curl -fsSL https://github.com/rstudio/tinytex-releases/releases/download/daily/TinyTeX-1.tar.gz -o /tmp/TinyTeX.tar.gz
+# Use the explicit linux-x86_64 xz archive (the generic .tar.gz is actually xz-compressed)
+curl -fsSL https://github.com/rstudio/tinytex-releases/releases/download/daily/TinyTeX-1-linux-x86_64.tar.xz -o /tmp/TinyTeX.tar.xz
 
 # Extract directly into /opt/TinyTeX, stripping the top-level directory name
-tar -xzf /tmp/TinyTeX.tar.gz -C "$TINYTEX_DIR" --strip-components=1
-rm -f /tmp/TinyTeX.tar.gz
+tar -xJf /tmp/TinyTeX.tar.xz -C "$TINYTEX_DIR" --strip-components=1
+rm -f /tmp/TinyTeX.tar.xz
 chown -R root:root "$TINYTEX_DIR"
 
 # Detect platform-specific bin dir (e.g., x86_64-linux) and configure tlmgr
