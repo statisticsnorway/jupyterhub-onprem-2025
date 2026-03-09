@@ -13,19 +13,19 @@
     "clean": "rimraf lib build"
   },
   "devDependencies": {
-    "@jupyterlab/application": "4.5.3",
-    "@jupyterlab/mainmenu": "4.5.3",
+    "@jupyterlab/application": "4.5.4",
+    "@jupyterlab/mainmenu": "4.5.4",
     "@jupyterlab/builder": "^4.2.0",
     "@types/node": "^20.11.0",
-    "rimraf": "^5.0.5",
+    "rimraf": "^6.1.3",
     "ts-loader": "^9.5.1",
     "typescript": "^5.4.0",
     "webpack": "^5.91.0",
     "webpack-cli": "^5.1.4"
   },
   "peerDependencies": {
-    "@jupyterlab/application": ">=4.5.3 <5",
-    "@jupyterlab/mainmenu": ">=4.5.3 <5"
+    "@jupyterlab/application": ">=4.5.4 <5",
+    "@jupyterlab/mainmenu": ">=4.5.4 <5"
   },
   "main": "lib/index.js",
   "types": "lib/index.d.ts"
