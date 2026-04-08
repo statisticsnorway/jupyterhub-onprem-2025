@@ -16,3 +16,9 @@ tlmgr install textpos
 tlmgr install amsfonts
 
 tlmgr install booktabs
+
+tlmgr install tcolorbox 
+
+tlmgr install environ 
+
+tlmgr install etoolbox
