@@ -1,0 +1,61 @@
+# Minimal image to verify notebook → PDF via nbconvert (xelatex + pandoc).
+#
+# Why the full Dockerfile.lab can fail with "xelatex not found":
+# TinyTeX lives under /opt/TinyTeX, but PATH is only added in /etc/profile.d/tinytex.sh.
+# Jupyter/nbconvert subprocesses often do not load profile.d, so xelatex is missing from PATH.
+#
+# This image uses Ubuntu's texlive-xetex (xelatex in /usr/bin) so PATH is always correct.
+
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    pandoc \
+    python3 \
+    python3-pip \
+    texlive-fonts-recommended \
+    texlive-latex-extra \
+    texlive-latex-recommended \
+    texlive-xetex \
+    && rm -rf /var/lib/apt/lists/*
+
+# Ubuntu 24.04: use --break-system-packages for system Python (PEP 668).
+RUN pip3 install --break-system-packages --no-cache-dir \
+    "jupyterlab>=4" \
+    "nbconvert>=7"
+
+# Build-time smoke test: proves xelatex is on PATH and nbconvert can emit PDF.
+RUN python3 <<'PY'
+import json
+nb = {
+    "nbformat": 4,
+    "nbformat_minor": 5,
+    "metadata": {
+        "kernelspec": {
+            "display_name": "Python 3",
+            "language": "python",
+            "name": "python3",
+        },
+        "language_info": {"name": "python"},
+    },
+    "cells": [
+        {
+            "cell_type": "markdown",
+            "metadata": {},
+            "source": ["# Minimal PDF test\n", "\n", "If this builds, `xelatex` + nbconvert work.\n"],
+        }
+    ],
+}
+open("/tmp/smoke.ipynb", "w", encoding="utf-8").write(json.dumps(nb))
+PY
+
+RUN which xelatex && xelatex --version && \
+    jupyter nbconvert --to pdf /tmp/smoke.ipynb --output /tmp/smoke.pdf && \
+    test -s /tmp/smoke.pdf && \
+    rm -f /tmp/smoke.ipynb /tmp/smoke.pdf
+
+EXPOSE 8888
+CMD ["jupyter", "lab", "--ip=0.0.0.0", "--no-browser", "--allow-root"]
