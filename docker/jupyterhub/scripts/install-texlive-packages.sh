@@ -17,8 +17,12 @@ tlmgr install amsfonts
 
 tlmgr install booktabs
 
-tlmgr install tcolorbox 
+tlmgr install tcolorbox
 
-tlmgr install environ 
+tlmgr install environ
 
 tlmgr install etoolbox
+
+tlmgr install ulem soul
+
+tlmgr install pdfcol
