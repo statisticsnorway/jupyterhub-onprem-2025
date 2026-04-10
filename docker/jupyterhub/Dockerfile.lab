@@ -201,6 +201,9 @@ RUN apt-get update -y && \
      iputils-ping \
      build-essential \
      pandoc \
+     texlive-xetex \
+     texlive-fonts-recommended \
+     texlive-plain-generic \
      && apt-get clean \
      && rm -rf /var/lib/apt/lists/*
 
@@ -442,26 +445,26 @@ RUN chmod 0755 /usr/local/bin/start-singleuser.sh
 # Wrapper used by marimo-jupyter-extension.
 # Prefer project Poetry virtualenv so packages installed with `poetry add` are
 # immediately available in marimo when running inside the same project.
-RUN cat >/usr/local/bin/marimo-launch <<'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
+# RUN cat >/usr/local/bin/marimo-launch <<'EOF'
+# #!/usr/bin/env bash
+# set -euo pipefail
 
-[ -f "$HOME/.bashrc" ] && source "$HOME/.bashrc"
+# [ -f "$HOME/.bashrc" ] && source "$HOME/.bashrc"
 
-# If marimo is opened on a concrete file, run from that directory so Poetry
-# picks the correct pyproject.toml.
-if [ "${1:-}" = "edit" ] && [ -n "${2:-}" ]; then
-  notebook_dir="$(dirname "$2")"
-  [ -d "$notebook_dir" ] && cd "$notebook_dir"
-fi
+# # If marimo is opened on a concrete file, run from that directory so Poetry
+# # picks the correct pyproject.toml.
+# if [ "${1:-}" = "edit" ] && [ -n "${2:-}" ]; then
+#   notebook_dir="$(dirname "$2")"
+#   [ -d "$notebook_dir" ] && cd "$notebook_dir"
+# fi
 
-if command -v poetry >/dev/null 2>&1 && [ -f "pyproject.toml" ]; then
-  exec poetry run marimo "$@"
-fi
+# if command -v poetry >/dev/null 2>&1 && [ -f "pyproject.toml" ]; then
+#   exec poetry run marimo "$@"
+# fi
 
-exec /opt/conda/bin/python -m marimo "$@"
-EOF
-RUN chmod 0755 /usr/local/bin/marimo-launch
+# exec /opt/conda/bin/python -m marimo "$@"
+# EOF
+# RUN chmod 0755 /usr/local/bin/marimo-launch
 
 USER root
 ENTRYPOINT ["/usr/local/bin/start-singleuser.sh"]
