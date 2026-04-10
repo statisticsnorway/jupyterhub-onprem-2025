@@ -26,3 +26,5 @@ tlmgr install etoolbox
 tlmgr install ulem soul
 
 tlmgr install pdfcol
+
+tlmgr install parskip
