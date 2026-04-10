@@ -28,3 +28,13 @@ tlmgr install ulem soul
 tlmgr install pdfcol
 
 tlmgr install parskip
+
+tlmgr install caption
+
+tlmgr install collection-latexrecommended
+
+tlmgr install collection-latexextra
+
+tlmgr install collection-fontsrecommended
+
+tlmgr install collection-xetex
