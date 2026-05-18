@@ -90,6 +90,7 @@ RUN apt-get update && \
     gnupg \
     lsb-release \
     software-properties-common \
+    pkg-config \
     alien \
     libaio-dev \
     libgit2-dev \
@@ -127,7 +128,7 @@ ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
 
 # Apache Arrow configuration
-ARG ARROW_VERSION="23.0.0"
+ARG ARROW_VERSION="24.0.0"
 ENV ARROW_VERSION=${ARROW_VERSION}
 
 # Use RStudio's package manager to download packages as binaries
@@ -160,7 +161,6 @@ ENV OCI_INC=/usr/include/oracle/21/client64
 ENV OCI_LIB=/usr/lib/oracle/21/client64/lib
 ENV ORACLE_HOME=/usr/lib/oracle/21/client64
 ENV TNS_ADMIN=/usr/lib/oracle/21/client64/lib/network
-ENV LD_LIBRARY_PATH="/usr/lib/oracle/21/client64/lib"
 
 # Copy the ROracle installation file into the container and link libaio.so.1
 COPY ROracle_1.4-1_R_x86_64-unknown-linux-gnu.tar.gz /tmp/ROracle_1.4-1_R_x86_64-unknown-linux-gnu.tar.gz
@@ -172,13 +172,26 @@ RUN /opt/scripts/install-r-packages.sh && \
     chown -R ${USERNAME}:${GROUPNAME} ${HOME} ${R_HOME} && \
     rm -f /tmp/ROracle_1.4-1_R_x86_64-unknown-linux-gnu.tar.gz
 
+ENV ARROW_HOME="/usr"
+ENV ARROW_USE_PKG_CONFIG="TRUE"
+ENV LIBARROW_BINARY="FALSE"
+ENV LIBARROW_BUILD="FALSE"
+ENV PKG_CONFIG_PATH="/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig"
+
 # Install jwsacruncher
 COPY ./jwsacruncher-2.2.4.zip /tmp/jwsacruncher-2.2.4.zip
 RUN unzip /tmp/jwsacruncher-2.2.4.zip -d /opt && rm -f /tmp/jwsacruncher-2.2.4.zip
 # Create a symlink at /usr/bin so users can call jwsacruncher from anywhere
 RUN ln -s /opt/jwsacruncher-2.2.4/bin/jwsacruncher /usr/bin/jwsacruncher
 
-RUN sed -i "/^PATH=/c\PATH=$PATH" "$R_HOME/etc/Renviron.site"
+RUN sed -i "/^PATH=/c\PATH=$PATH" "$R_HOME/etc/Renviron.site" && \
+    { \
+    echo "ARROW_HOME=${ARROW_HOME}"; \
+    echo "ARROW_USE_PKG_CONFIG=${ARROW_USE_PKG_CONFIG}"; \
+    echo "LIBARROW_BINARY=${LIBARROW_BINARY}"; \
+    echo "LIBARROW_BUILD=${LIBARROW_BUILD}"; \
+    echo "PKG_CONFIG_PATH=${PKG_CONFIG_PATH}"; \
+    } >> "$R_HOME/etc/Renviron.site"
 
 # ------------------------------------------------------------------------------
 # Python/Conda installation and configuration
@@ -197,15 +210,15 @@ ENV DAPLA_REGION=ON_PREM
 
 # Install additional system packages
 RUN apt-get update -y && \
-     apt-get install -y --no-install-recommends \
-     iputils-ping \
-     build-essential \
-     pandoc \
-     texlive-xetex \
-     texlive-fonts-recommended \
-     texlive-plain-generic \
-     && apt-get clean \
-     && rm -rf /var/lib/apt/lists/*
+    apt-get install -y --no-install-recommends \
+    iputils-ping \
+    build-essential \
+    pandoc \
+    texlive-xetex \
+    texlive-fonts-recommended \
+    texlive-plain-generic \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 ARG CONDA_DIR=/opt/conda
 ENV CONDA_DIR=${CONDA_DIR}
@@ -265,7 +278,7 @@ RUN /opt/scripts/install-jupyterlab.sh && \
     python3 -m pip install sympy mpmath && \
     python3 -m pip install sphinx sphinx-autodoc-defaultargs sphinx-autodoc-typehints sphinx-rtd-theme && \
     python3 -m pip install pytest pytest_tornasync pytest-cov pytest-mock pre-commit-hooks jupyterlab-code-formatter black[jupyter] isort && \
-    python3 -m pip install pyjstat xmltodict lxml holidays PyGithub pre-commit pyminizip rich openpyxl pyarrow python-dotenv && \
+    python3 -m pip install pyjstat xmltodict lxml holidays PyGithub pre-commit pyminizip rich openpyxl pyarrow==${ARROW_VERSION} python-dotenv && \
     python3 -m pip install venv-pack nbdev && \
     python3 -m pip install oracledb && \
     python3 -m pip install saspy && \
@@ -279,7 +292,7 @@ RUN /opt/scripts/install-jupyterlab.sh && \
     python3 -m pip cache purge || true
 
 RUN python -m pip install pipx && \
-# Install and configure pipx packages
+    # Install and configure pipx packages
     pipx install nox && \
     pipx install poetry && \
     pipx install pre-commit && \
@@ -318,16 +331,16 @@ RUN set -eux; \
     apt-get remove -y nodejs || true; \
     apt-get autoremove -y; \
     for source_file in \
-        /etc/apt/sources.list.d/nodesource.list \
-        /etc/apt/sources.list.d/nodesource.sources; do \
-        if [ -f "${source_file}" ]; then \
-            mv "${source_file}" "${source_file}.disabled"; \
-        fi; \
+    /etc/apt/sources.list.d/nodesource.list \
+    /etc/apt/sources.list.d/nodesource.sources; do \
+    if [ -f "${source_file}" ]; then \
+    mv "${source_file}" "${source_file}.disabled"; \
+    fi; \
     done; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
-        nodejs \
-        libnode-dev; \
+    nodejs \
+    libnode-dev; \
     apt-get clean; \
     rm -rf /var/lib/apt/lists/*
 
@@ -369,11 +382,11 @@ RUN chmod u-w  /opt/conda/share/jupyter/lab/extensions
 # NSS/SSSD client (install after rocker scripts)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        libpam-sss \
-        libnss-sss \
-        sssd-common \
-        sssd-tools \
-        libnss3-tools && \
+    libpam-sss \
+    libnss-sss \
+    sssd-common \
+    sssd-tools \
+    libnss3-tools && \
     apt-mark manual libpam-sss libnss-sss sssd-common sssd-tools libnss3-tools || true && \
     sed -i 's/^passwd:.*/passwd:     files sss systemd/' /etc/nsswitch.conf && \
     sed -i 's/^group:.*/group:      files sss systemd/'  /etc/nsswitch.conf && \
@@ -389,7 +402,7 @@ COPY ./common-bashrc /usr/local/share/etc/bashrc.felles
 COPY Rprofile.site /etc/R/Rprofile.site
 
 RUN mkdir -p /usr/local/bin/before-notebook.d && \
-  cat >/usr/local/bin/before-notebook.d/10-git-safe.sh <<'EOF'
+    cat >/usr/local/bin/before-notebook.d/10-git-safe.sh <<'EOF'
 #!/usr/bin/env bash
 if ! git config --global --get-all safe.directory | grep -qx '\*'; then
   git config --global --add safe.directory '*'
