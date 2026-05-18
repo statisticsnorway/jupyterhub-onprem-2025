@@ -76,6 +76,16 @@ if [[ "$REQ_SERIES" == "$LATEST_SERIES" ]]; then
   apt-get install -y -V --no-install-recommends "${LATEST_PKGS[@]}"
 else
   [[ -z $REV ]] && { echo "!! libarrow-dev $ARROW_VERSION not in repo"; exit 1; }
+
+  # Arrow patch releases can reuse the same ABI package names, e.g.
+  # libarrow2300 exists at both 23.0.0-1 and 23.0.1-1. Pin the selected
+  # revision so apt resolves transitive runtime dependencies consistently.
+  cat >/etc/apt/preferences.d/apache-arrow-version <<EOF
+Package: libarrow* libparquet* libgandiva* gir1.2-arrow* gir1.2-parquet* gir1.2-gandiva*
+Pin: version $REV
+Pin-Priority: 1001
+EOF
+
   REQUIRED_PKGS=(
     libarrow-dev libparquet-dev
     libarrow-dataset-dev libarrow-compute-dev libarrow-acero-dev
