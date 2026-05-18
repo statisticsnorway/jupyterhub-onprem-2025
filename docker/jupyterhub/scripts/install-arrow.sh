@@ -54,83 +54,63 @@ fi
 echo "    ↪ APT series      : $LATEST_SERIES (req $REQ_SERIES)"
 
 ############################################################################
-# 3)  Install Arrow dev libs (latest uses default apt, older uses pinned)
+# 3)  Install Arrow dev libs at one exact APT revision
 ############################################################################
-LATEST_PKGS=(
-  libarrow-dev
-  libarrow-glib-dev
-  libarrow-dataset-dev
-  libarrow-dataset-glib-dev
-  libarrow-acero-dev
-  libarrow-flight-dev
-  libarrow-flight-glib-dev
-  libarrow-flight-sql-dev
-  libarrow-flight-sql-glib-dev
-  libgandiva-dev
-  libgandiva-glib-dev
-  libparquet-dev
-  libparquet-glib-dev
-)
+[[ -z $REV ]] && { echo "!! libarrow-dev $ARROW_VERSION not in repo"; exit 1; }
 
-if [[ "$REQ_SERIES" == "$LATEST_SERIES" ]]; then
-  apt-get install -y -V --no-install-recommends "${LATEST_PKGS[@]}"
-else
-  [[ -z $REV ]] && { echo "!! libarrow-dev $ARROW_VERSION not in repo"; exit 1; }
-
-  # Arrow patch releases can reuse the same ABI package names, e.g.
-  # libarrow2300 exists at both 23.0.0-1 and 23.0.1-1. Pin the selected
-  # revision so apt resolves transitive runtime dependencies consistently.
-  cat >/etc/apt/preferences.d/apache-arrow-version <<EOF
+# Arrow patch releases can reuse the same ABI package names, e.g.
+# libarrow2300 exists at both 23.0.0-1 and 23.0.1-1. Pin the selected
+# revision so apt resolves transitive runtime dependencies consistently.
+cat >/etc/apt/preferences.d/apache-arrow-version <<EOF
 Package: libarrow* libparquet* libgandiva* gir1.2-arrow* gir1.2-parquet* gir1.2-gandiva*
 Pin: version $REV
 Pin-Priority: 1001
 EOF
 
-  REQUIRED_PKGS=(
-    libarrow-dev libparquet-dev
-    libarrow-dataset-dev libarrow-compute-dev libarrow-acero-dev
-    libarrow-flight-dev libarrow-flight-sql-dev
-    libgandiva-dev
-  )
-  OPTIONAL_PKGS=(
-    libarrow-glib-dev libparquet-glib-dev
-    libarrow-dataset-glib-dev
-    libarrow-flight-glib-dev libarrow-flight-sql-glib-dev
-    libgandiva-glib-dev
-    gir1.2-arrow-1.0 gir1.2-parquet-1.0 gir1.2-arrow-dataset-1.0
-    gir1.2-arrow-flight-1.0 gir1.2-arrow-flight-sql-1.0
-    gir1.2-gandiva-1.0
-  )
+REQUIRED_PKGS=(
+  libarrow-dev libparquet-dev
+  libarrow-dataset-dev libarrow-compute-dev libarrow-acero-dev
+  libarrow-flight-dev libarrow-flight-sql-dev
+  libgandiva-dev
+)
+OPTIONAL_PKGS=(
+  libarrow-glib-dev libparquet-glib-dev
+  libarrow-dataset-glib-dev
+  libarrow-flight-glib-dev libarrow-flight-sql-glib-dev
+  libgandiva-glib-dev
+  gir1.2-arrow-1.0 gir1.2-parquet-1.0 gir1.2-arrow-dataset-1.0
+  gir1.2-arrow-flight-1.0 gir1.2-arrow-flight-sql-1.0
+  gir1.2-gandiva-1.0
+)
 
-  have_rev() {
-    apt-cache madison "$1" | awk -F'|' -v v="$REV" '{gsub(/^ +| +$/, "", $2); if($2==v){found=1}} END{exit !found}'
-  }
+have_rev() {
+  apt-cache madison "$1" | awk -F'|' -v v="$REV" '{gsub(/^ +| +$/, "", $2); if($2==v){found=1}} END{exit !found}'
+}
 
-  INSTALL_PKGS=()
-  for pkg in "${REQUIRED_PKGS[@]}"; do
-    if have_rev "$pkg"; then
-      INSTALL_PKGS+=("${pkg}=$REV")
-    else
-      echo "!! required package missing at $REV: $pkg"
-      exit 1
-    fi
-  done
-
-  SKIPPED_OPTIONAL=()
-  for pkg in "${OPTIONAL_PKGS[@]}"; do
-    if have_rev "$pkg"; then
-      INSTALL_PKGS+=("${pkg}=$REV")
-    else
-      SKIPPED_OPTIONAL+=("$pkg")
-    fi
-  done
-
-  apt-get install -y --allow-downgrades --allow-change-held-packages \
-    --no-install-recommends "${INSTALL_PKGS[@]}"
-
-  if ((${#SKIPPED_OPTIONAL[@]})); then
-    echo "    ↪ Skipped optional packages (not in repo at $REV): ${SKIPPED_OPTIONAL[*]}"
+INSTALL_PKGS=()
+for pkg in "${REQUIRED_PKGS[@]}"; do
+  if have_rev "$pkg"; then
+    INSTALL_PKGS+=("${pkg}=$REV")
+  else
+    echo "!! required package missing at $REV: $pkg"
+    exit 1
   fi
+done
+
+SKIPPED_OPTIONAL=()
+for pkg in "${OPTIONAL_PKGS[@]}"; do
+  if have_rev "$pkg"; then
+    INSTALL_PKGS+=("${pkg}=$REV")
+  else
+    SKIPPED_OPTIONAL+=("$pkg")
+  fi
+done
+
+apt-get install -y --allow-downgrades --allow-change-held-packages \
+  --no-install-recommends "${INSTALL_PKGS[@]}"
+
+if ((${#SKIPPED_OPTIONAL[@]})); then
+  echo "    ↪ Skipped optional packages (not in repo at $REV): ${SKIPPED_OPTIONAL[*]}"
 fi
 
 ############################################################################
