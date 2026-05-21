@@ -353,7 +353,7 @@ RUN mkdir -p /usr/local/bin/start-notebook.d && \
     echo 'set -e' >> /usr/local/bin/start-notebook.d/update-certificate.sh && \
     echo '# Download certificate to temp file first, then move with sudo' >> /usr/local/bin/start-notebook.d/update-certificate.sh && \
     echo 'TMP_CERT=$(mktemp)' >> /usr/local/bin/start-notebook.d/update-certificate.sh && \
-    echo 'curl -fsSL https://nexus.ssb.no/repository/certificate_repo/ssb/cert_Decrypt-CA.crt --output "$TMP_CERT" && sudo -n install -m 644 "$TMP_CERT" /usr/local/share/ca-certificates/cert_Decrypt-CA.crt || true' >> /usr/local/bin/start-notebook.d/update-certificate.sh && \
+    echo 'curl -fsSL https://nexus.ssb.no/repository/certificate_repo/ssb/decrypt-ca.crt --output "$TMP_CERT" && sudo -n install -m 644 "$TMP_CERT" /usr/local/share/ca-certificates/cert_Decrypt-CA.crt || true' >> /usr/local/bin/start-notebook.d/update-certificate.sh && \
     echo 'rm -f "$TMP_CERT"' >> /usr/local/bin/start-notebook.d/update-certificate.sh && \
     echo '# Update CA certificates' >> /usr/local/bin/start-notebook.d/update-certificate.sh && \
     echo 'sudo -n update-ca-certificates || update-ca-certificates || true' >> /usr/local/bin/start-notebook.d/update-certificate.sh && \
