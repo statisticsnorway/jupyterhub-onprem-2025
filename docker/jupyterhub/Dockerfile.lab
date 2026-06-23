@@ -399,8 +399,12 @@ COPY ./common-bashrc /etc/skel/.bashrc
 
 COPY ./common-bashrc /usr/local/share/etc/bashrc.felles
 
-# Change default R repo
-COPY Rprofile.site /etc/R/Rprofile.site
+# Change default R repo.
+# Source-built R reads $R_HOME/etc/Rprofile.site; keep /etc/R for Debian-style R.
+COPY Rprofile.site /tmp/Rprofile.site
+RUN install -D -m 0644 /tmp/Rprofile.site /etc/R/Rprofile.site && \
+    install -D -m 0644 /tmp/Rprofile.site "${R_HOME}/etc/Rprofile.site" && \
+    rm /tmp/Rprofile.site
 
 RUN mkdir -p /usr/local/bin/before-notebook.d && \
     cat >/usr/local/bin/before-notebook.d/10-git-safe.sh <<'EOF'
@@ -428,8 +432,8 @@ RUN ln -s /opt/conda/bin/python /usr/bin/python
 # (Optional but recommended) System-wide fallback so non-interactive git also trusts repos
 RUN git config --system --add safe.directory '*'
 
-# Set CRAN to the Nexus repository
-RUN unset CRAN
+# Set the runtime CRAN repository. Docker ENV persists in the final image;
+# RUN unset CRAN would only affect one build shell.
 ENV CRAN=https://nexus.ssb.no/repository/packagemanager-rstudio-noble/
 
 # Create a symlink to the stamme_variabel file

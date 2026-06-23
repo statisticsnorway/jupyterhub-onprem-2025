@@ -1,12 +1,18 @@
 .First <- function() {
+  default_cran <- "https://nexus.ssb.no/repository/packagemanager-rstudio-noble/"
+  legacy_posit_cran <- "https://packagemanager.posit.co/cran/__linux__/noble"
+
   home <- Sys.getenv("R_HOME")
   .libPaths(c(file.path(home, "lib"), .libPaths()))
 
+  cran <- Sys.getenv("CRAN", unset = default_cran)
+  if (startsWith(cran, legacy_posit_cran)) {
+    cran <- default_cran
+  }
+  Sys.setenv(CRAN = cran)
+
   r <- getOption("repos")
-  r["CRAN"] <- Sys.getenv(
-    "CRAN",
-    unset = "https://nexus.ssb.no/repository/packagemanager-rstudio-noble/"
-  )
+  r["CRAN"] <- cran
   options(repos = r)
-  rm(r)
+  rm(default_cran, legacy_posit_cran, cran, r)
 }
