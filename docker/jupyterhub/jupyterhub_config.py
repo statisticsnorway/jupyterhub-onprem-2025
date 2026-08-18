@@ -148,26 +148,6 @@ c.DockerSpawner.environment.update({
     "JUPYTER_PLATFORM_DIRS": "1",
 })
 
-c.JupyterHub.template_paths = ["/srv/jupyterhub/templates"]
-
-c.DockerSpawner.profile_list = [
-    {
-        "display_name": "JupyterLab",
-        "description": "Python / R / JupyterLab",
-        "default": True,
-        "spawner_override": {
-            "image": "nexus.ssb.no:8439/artifact-registry-5n/itinfra-bakkesyst-docker/onprem-jupyterlab:1.0.1",
-        },
-    },
-    {
-        "display_name": "RStudio Server",
-        "description": "RStudio IDE",
-        "spawner_override": {
-            "image": "nexus.ssb.no:8439/artifact-registry-5n/itinfra-bakkesyst-docker/rstudio-onprem:0.3.7",
-        },
-    },
-]
-
 # marimo-jupyter-extension runtime configuration:
 # - Use a wrapper that selects Poetry venv when available in the current project.
 # - This keeps marimo imports aligned with packages added via `poetry add`.
