@@ -8,31 +8,160 @@ c = get_config()
 # avoid having to rebuild the JupyterHub container every time we change a
 # configuration parameter.
 
+LOCAL_DEV = os.environ.get("JUPYTERHUB_LOCAL_DEV", "").lower() in {"1", "true", "yes"}
+
 # Spawn single-user servers as Docker containers
-c.JupyterHub.spawner_class = "dockerspawner.SystemUserSpawner"
+if LOCAL_DEV:
+    # No PAM/SSSD or host users on a laptop — DummyAuthenticator + DockerSpawner
+    c.JupyterHub.spawner_class = "dockerspawner.DockerSpawner"
+    c.JupyterHub.authenticator_class = "dummy"
+    c.DummyAuthenticator.password = os.environ.get("DUMMY_PASSWORD", "test")
+    c.Authenticator.admin_users = {"admin"}
+    c.Authenticator.allow_all = True
+    c.DockerSpawner.pull_policy = os.environ.get("DOCKER_PULL_POLICY", "ifnotpresent")
+else:
+    c.JupyterHub.spawner_class = "dockerspawner.SystemUserSpawner"
 
-c.PAMAuthenticator.service = "login"
+    c.PAMAuthenticator.service = "login"
 
-# Normalize username, so if user logs in with domain, username@ssb.no
-# then the domain will be cut out once the users notebook server is spawned
-c.PAMAuthenticator.pam_normalize_username = True
-c.PAMAuthenticator.open_sessions = False
+    # Normalize username, so if user logs in with domain, username@ssb.no
+    # then the domain will be cut out once the users notebook server is spawned
+    c.PAMAuthenticator.pam_normalize_username = True
+    c.PAMAuthenticator.open_sessions = False
 
-c.Authenticator.allow_all = True
+    c.Authenticator.allow_all = True
 
-c.DockerSpawner.pull_policy = "always"
+    c.DockerSpawner.pull_policy = "always"
 
-# Add admin users
-c.PAMAuthenticator.admin_groups = {"RBAG_jupyterhub_admins@ssb.no"}
+    # Add admin users
+    c.PAMAuthenticator.admin_groups = {"RBAG_jupyterhub_admins@ssb.no"}
 
-# Remove users that are no longer able to authenticate
-c.Authenticator.delete_invalid_users = True
+    # Remove users that are no longer able to authenticate
+    c.Authenticator.delete_invalid_users = True
 
 c.DockerSpawner.http_timeout = 120
 c.Spawner.start_timeout = 120
 
-# Spawn containers from this image
-c.DockerSpawner.image = os.environ["DOCKER_NOTEBOOK_IMAGE"]
+# JupyterHub 5.3 / DockerSpawner 14 have no profile_list (that is KubeSpawner).
+# allowed_images with more than one entry renders the spawn form.
+_lab_r440 = os.environ["DOCKER_NOTEBOOK_IMAGE_R440"]
+_lab_r460 = os.environ["DOCKER_NOTEBOOK_IMAGE_R460"]
+_rstudio_r440 = os.environ["DOCKER_RSTUDIO_IMAGE_R440"]
+_rstudio_r460 = os.environ["DOCKER_RSTUDIO_IMAGE_R460"]
+
+# Required default only. Users pick the real image from allowed_images
+# (Lab 4.4/4.6 or RStudio 4.4/4.6). Used if the spawn form is skipped.
+c.DockerSpawner.image = _lab_r440
+
+# Two fixed slots per username — users never type a server name.
+#   /user/<username>/          → JupyterLab (default server)
+#   /user/<username>/rstudio/  → RStudio (fixed named server)
+_RSTUDIO_SERVER_NAME = "rstudio"
+_lab_choices = {
+    "JupyterLab Python 3.13 R 4.4.0": _lab_r440,
+    "JupyterLab Python 3.13 R 4.6.0": _lab_r460,
+}
+_rstudio_choices = {
+    "RStudio R 4.4.0": _rstudio_r440,
+    "RStudio R 4.6.0": _rstudio_r460,
+}
+_rstudio_images = {_rstudio_r440, _rstudio_r460}
+
+
+def _spawner_name(spawner):
+    return getattr(spawner, "name", "") or ""
+
+
+def _allowed_images_for(spawner):
+    if _spawner_name(spawner) == _RSTUDIO_SERVER_NAME:
+        return dict(_rstudio_choices)
+    return dict(_lab_choices)
+
+
+c.DockerSpawner.allowed_images = _allowed_images_for
+
+
+def _resolve_allowed_map(spawner):
+    allowed = getattr(spawner, "allowed_images", None)
+    if callable(allowed):
+        allowed = allowed(spawner)
+    return allowed or {}
+
+
+def _resolve_selected_image(spawner, user_options=None):
+    """Map spawn-form image (display name or tag) to an allowed image."""
+    opts = user_options if user_options is not None else (spawner.user_options or {})
+    image = opts.get("image") if opts else None
+    if isinstance(image, list):
+        image = image[0] if image else None
+    if not image:
+        image = spawner.image
+    allowed = _resolve_allowed_map(spawner)
+    if isinstance(allowed, dict) and image in allowed:
+        return allowed[image]
+    return image
+
+
+def _apply_image_defaults(spawner):
+    # DockerSpawner.start() applies user_options.image *after* this hook.
+    # Resolve it here so RStudio gets /rstudio and a directory that exists.
+    name = _spawner_name(spawner)
+    if name and name != _RSTUDIO_SERVER_NAME:
+        raise ValueError(
+            f"Server name {name!r} is not allowed. "
+            "Use the default server for JupyterLab or 'rstudio' for RStudio."
+        )
+
+    image = _resolve_selected_image(spawner)
+    if name == _RSTUDIO_SERVER_NAME and image not in _rstudio_images:
+        image = _rstudio_r440
+    elif name != _RSTUDIO_SERVER_NAME and image in _rstudio_images:
+        image = _lab_r440
+    if image:
+        spawner.image = image
+
+    rstudio_url = os.environ.get("RSTUDIO_DEFAULT_URL", "/rstudio")
+    if image in _rstudio_images:
+        spawner.default_url = rstudio_url
+        if LOCAL_DEV:
+            spawner.notebook_dir = os.environ.get(
+                "DOCKER_RSTUDIO_NOTEBOOK_DIR", "/home/rstudio/work"
+            )
+            extra = dict(getattr(spawner, "extra_create_kwargs", None) or {})
+            extra.setdefault("user", "rstudio")
+            spawner.extra_create_kwargs = extra
+            env = dict(getattr(spawner, "environment", None) or {})
+            env.setdefault("HOME", "/home/rstudio")
+            env.setdefault("USER", "rstudio")
+            env.setdefault("JUPYTER_RSESSION_PROXY_USE_SOCKET", "no")
+            env.setdefault("RSERVER_TIMEOUT", "60")
+            spawner.environment = env
+            # Default Hub args set log_level=WARN and hide /rstudio/rpc traffic.
+            args = [a for a in (spawner.args or []) if not a.startswith("--ServerApp.log_level=")]
+            args.append("--ServerApp.log_level=INFO")
+            spawner.args = args
+    else:
+        spawner.default_url = "/lab"
+        if LOCAL_DEV:
+            spawner.notebook_dir = os.environ.get("DOCKER_NOTEBOOK_DIR", "/home/jovyan")
+
+
+c.DockerSpawner.pre_spawn_hook = _apply_image_defaults
+
+
+def _apply_user_options(spawner, user_options):
+    """JupyterHub 5.3 does not apply form values unless this hook is set."""
+    image = _resolve_selected_image(spawner, user_options)
+    if not image:
+        return
+    allowed = _resolve_allowed_map(spawner)
+    if isinstance(allowed, dict) and image not in allowed and image not in allowed.values():
+        raise ValueError(f"Image not allowed: {image}")
+    spawner.image = image
+
+
+c.Spawner.apply_user_options = _apply_user_options
+c.DockerSpawner.apply_user_options = _apply_user_options
 
 # JupyterHub requires a single-user instance of the Notebook server, so we
 # default to using the `start-singleuser.sh` script included in the
@@ -65,17 +194,25 @@ c.DockerSpawner.extra_host_config = {"network_mode": network_name}
 
 # Memory limits
 # Documentation https://jupyterhub-dockerspawner.readthedocs.io/en/latest/api/index.html
-c.DockerSpawner.mem_guarantee = "5G"
-c.DockerSpawner.mem_limit = "50G"
+if LOCAL_DEV:
+    c.DockerSpawner.mem_guarantee = os.environ.get("DOCKER_MEM_GUARANTEE", "256M")
+    c.DockerSpawner.mem_limit = os.environ.get("DOCKER_MEM_LIMIT", "2G")
+    c.DockerSpawner.volumes = {}
+    c.DockerSpawner.notebook_dir = os.environ.get("DOCKER_NOTEBOOK_DIR", "/home/jovyan")
+else:
+    c.DockerSpawner.mem_guarantee = "5G"
+    c.DockerSpawner.mem_limit = "50G"
 
-# Mounting /ssb/bruker from the jupyterhub container to the user container
-c.DockerSpawner.volumes = {
-    "/ssb": "/ssb",
-    "/var/lib/sss/pipes": {"bind": "/var/lib/sss/pipes", "mode": "ro,Z"},
-    "/var/lib/sss/mc":    {"bind": "/var/lib/sss/mc",    "mode": "rw,Z"},
-}
-# host_homedir_format_string must be set to map /ssb/bruker/{username} to /home/{username}
-c.SystemUserSpawner.host_homedir_format_string = "/ssb/bruker/{username}"
+    # /ssb comes from Hub compose; user files live under /ssb/bruker/<username>.
+    c.DockerSpawner.volumes = {
+        "/ssb": "/ssb",
+        "/var/lib/sss/pipes": {"bind": "/var/lib/sss/pipes", "mode": "ro,Z"},
+        "/var/lib/sss/mc":    {"bind": "/var/lib/sss/mc",    "mode": "rw,Z"},
+    }
+    # Jupyter/RStudio start here (SSSD user). {username} is filled by the spawner.
+    c.DockerSpawner.notebook_dir = "/ssb/bruker/{username}"
+    # Also bind that share to /home/{username} ($HOME for the AD user).
+    c.SystemUserSpawner.host_homedir_format_string = "/ssb/bruker/{username}"
 # Allowing users to delete non-empty directories in the jupyterlab file-explorer
 c.FileContentsManager.always_delete_dir = True
 
@@ -103,13 +240,25 @@ c.JupyterHub.services = [
 ]
 
 # User containers will access hub by container name on the Docker network
-c.JupyterHub.hub_ip = "jupyterhub"
 c.JupyterHub.hub_port = 8080
+if LOCAL_DEV:
+    c.JupyterHub.bind_url = "http://:8000"
+    c.JupyterHub.hub_bind_url = "http://0.0.0.0:8080"
+    c.JupyterHub.hub_connect_url = "http://jupyterhub:8080"
+else:
+    c.JupyterHub.hub_ip = "jupyterhub"
+    # TLS config
+    c.JupyterHub.port = 443
+    c.JupyterHub.ssl_key = os.environ["SSL_KEY"]
+    c.JupyterHub.ssl_cert = os.environ["SSL_CERT"]
 
-# TLS config
-c.JupyterHub.port = 443
-c.JupyterHub.ssl_key = os.environ["SSL_KEY"]
-c.JupyterHub.ssl_cert = os.environ["SSL_CERT"]
+# Two containers per user, both keyed off the login name — no user-chosen names.
+# After login, land on Control Panel so both JupyterLab and RStudio are visible.
+c.JupyterHub.allow_named_servers = True
+c.JupyterHub.named_server_limit_per_user = 1
+c.JupyterHub.redirect_to_server = False
+c.JupyterHub.default_url = "/hub/home"
+c.JupyterHub.template_paths = ["/srv/jupyterhub/templates"]
 
 # Skip OAuth consent screen for single-user servers
 c.JupyterHub.oauth_no_confirm = True

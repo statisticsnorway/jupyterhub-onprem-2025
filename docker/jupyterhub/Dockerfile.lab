@@ -115,6 +115,8 @@ RUN apt-get update && \
 # R and Java installation and configuration
 # ------------------------------------------------------------------------------
 
+# CI builds this image twice: R_VERSION=4.4.0 and R_VERSION=4.6.0
+# (rocker-versioned2 tags R4.4.0 / R4.6.0).
 ARG R_VERSION="4.4.0"
 ENV R_VERSION=${R_VERSION}
 ENV R_HOME="/usr/local/lib/R"

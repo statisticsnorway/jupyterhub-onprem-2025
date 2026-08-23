@@ -1,13 +1,13 @@
-# This workflow will build and push a new Docker image to the default Artifact Registry in SSB.
+# This workflow will build and push Docker images to the default Artifact Registry in SSB.
 #
 # Overview:
 # 1. Authenticate to Google Cloud
 # 2. Authenticate to Artifact Registry
-# 3. Build and publish a docker image to Google Artifact Registry
-# 
+# 3. Build and publish Hub, JupyterLab (R 4.4 / 4.6) and RStudio (R 4.4 / 4.6) images
+#
 # To configure this workflow:
-# 1. Change the values for the IMAGE_NAME and TEAM_NAME environment variables (below).
-# 2. The image will be tagged with the git commit hash and latest. To override the default tags, add tags to the build_metadata step.
+# 1. Change the values for TEAM_NAME if needed.
+# 2. Images are tagged with git ref, latest (main), and semver (releases).
 #
 # This workflow is tailored for SSB´s setup, however if you wish to use this in a non SSB context ensure/change the following:
 # 1. Create GitHub secrets for GAR_PROJECT_NUMBER and GAR_PROJECT_ID (Number and ID for the Artifact Registry project).
@@ -23,32 +23,67 @@ on:
   push:
     branches:
       - "main"
-    paths: 
-      - 'docker/**'
+    paths:
+      - 'docker/jupyterhub/Dockerfile.hub'
+      - 'docker/jupyterhub/Dockerfile.lab'
+      - 'docker/rstudio/Dockerfile'
       - '.github/workflows/docker-build-pipeline.yml'
   pull_request:
-    paths: 
-      - 'docker/**'
+    paths:
+      - 'docker/jupyterhub/Dockerfile.hub'
+      - 'docker/jupyterhub/Dockerfile.lab'
+      - 'docker/rstudio/Dockerfile'
       - '.github/workflows/docker-build-pipeline.yml'
 
 env:
   REGISTRY_HOST: europe-north1-docker.pkg.dev
   REGISTRY: europe-north1-docker.pkg.dev/${{ secrets.GAR_PROJECT_ID }}
-  IMAGE_NAME_LAB: onprem-jupyterlab # TODO: set this to your preferred image name
-  IMAGE_NAME_HUB: onprem-jupyterhub # TODO: set this to your preferred image name
-  TEAM_NAME: itinfra-bakkesyst   # TODO: set this to you teams name
-  
+  TEAM_NAME: itinfra-bakkesyst
   TAG: ${{ github.ref_name }}-${{ github.sha }}
 
 jobs:
 
-  onprem-jupyterlab-build:
+  build:
     permissions:
       contents: "read"
       id-token: "write"
     runs-on: ubuntu-latest
-    # outputs:
-    #   semver_image_tag: ${{ steps.metadata.outputs.version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image_name: onprem-jupyterhub
+            file: docker/jupyterhub/Dockerfile.hub
+            context: docker/jupyterhub
+            r_version: ""
+            python_version: ""
+            arrow_version: ""
+          - image_name: onprem-jupyterlab-r440
+            file: docker/jupyterhub/Dockerfile.lab
+            context: docker/jupyterhub
+            r_version: "4.4.0"
+            python_version: "313"
+            arrow_version: "24.0.0"
+          - image_name: onprem-jupyterlab-r460
+            file: docker/jupyterhub/Dockerfile.lab
+            context: docker/jupyterhub
+            r_version: "4.6.0"
+            python_version: "313"
+            arrow_version: "24.0.0"
+          # context=docker/rstudio so COPY scripts/, start-singleuser.sh,
+          # jupyter_server_config.py, rserver.conf, etc. resolve in that folder.
+          - image_name: onprem-rstudio-r440
+            file: docker/rstudio/Dockerfile
+            context: docker/rstudio
+            r_version: "4.4.0"
+            python_version: ""
+            arrow_version: "24.0.0"
+          - image_name: onprem-rstudio-r460
+            file: docker/rstudio/Dockerfile
+            context: docker/rstudio
+            r_version: "4.6.0"
+            python_version: ""
+            arrow_version: "24.0.0"
 
     steps:
     - name: Checkout repository
@@ -79,7 +114,7 @@ jobs:
       id: build_metadata
       uses: docker/metadata-action@v5
       with:
-        images: ${{ env.REGISTRY }}/${{ env.TEAM_NAME }}-docker/${{ env.IMAGE_NAME_LAB }}
+        images: ${{ env.REGISTRY }}/${{ env.TEAM_NAME }}-docker/${{ matrix.image_name }}
         tags: |
           type=ref,event=branch
           type=ref,event=pr
@@ -93,78 +128,21 @@ jobs:
     - name: Build and push docker image to Artifact Registry
       uses: docker/build-push-action@v5
       with:
-        context: docker/jupyterhub
+        context: ${{ matrix.context }}
         provenance: false
-        file: docker/jupyterhub/Dockerfile.lab
+        file: ${{ matrix.file }}
         push: true
         tags: ${{ steps.build_metadata.outputs.tags }}
         labels: ${{ steps.build_metadata.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-  
-  onprem-jupyterhub-build:
-    # needs: onprem-jupyterlab-build
-    permissions:
-      contents: "read"
-      id-token: "write"
-    runs-on: ubuntu-latest
-    # outputs:
-    #   semver_image_tag: ${{ steps.metadata.outputs.version }}
-
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-
-    - name: Authenticate to Google Cloud
-      id: auth
-      uses: google-github-actions/auth@v2.1.2
-      with:
-        workload_identity_provider: "projects/${{ secrets.GAR_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions/providers/gh-actions"
-        service_account: "gh-actions-${{ env.TEAM_NAME}}@${{ secrets.GAR_PROJECT_ID }}.iam.gserviceaccount.com"
-        token_format: access_token
-        create_credentials_file: true
-
-    - name: Setup gcloud
-      uses: google-github-actions/setup-gcloud@v2
-
-    - name: Configure docker auth helper
-      run: gcloud auth configure-docker ${{ env.REGISTRY_HOST }} --quiet
-
-    - name: Set up Docker Buildx
-      id: buildx
-      uses: docker/setup-buildx-action@v3
-      with:
-        version: v0.29.1
-
-    - name: Extract build metadata for Docker
-      id: build_metadata
-      uses: docker/metadata-action@v5
-      with:
-        images: ${{ env.REGISTRY }}/${{ env.TEAM_NAME }}-docker/${{ env.IMAGE_NAME_HUB }}
-        tags: |
-          type=ref,event=branch
-          type=ref,event=pr
-          type=raw,value=latest,enable={{is_default_branch}}
-          type=semver,pattern=v{{version}}
-          type=semver,pattern=v{{major}}.{{minor}}
-          type=semver,pattern=v{{major}}
-          type=semver,pattern={{version}}
-          type=raw,value=${{ env.TAG }}, enable=true
-
-    - name: Build and push docker image to Artifact Registry
-      uses: docker/build-push-action@v5
-      with:
-        context: docker/jupyterhub
-        provenance: false
-        file: docker/jupyterhub/Dockerfile.hub
-        push: true
-        tags: ${{ steps.build_metadata.outputs.tags }}
-        labels: ${{ steps.build_metadata.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+        build-args: |
+          R_VERSION=${{ matrix.r_version }}
+          PYTHON_VERSION=${{ matrix.python_version }}
+          ARROW_VERSION=${{ matrix.arrow_version }}
+        cache-from: type=gha,scope=${{ matrix.image_name }}
+        cache-to: type=gha,mode=max,scope=${{ matrix.image_name }}
 
   deploy_staging:
-    needs: [onprem-jupyterhub-build, onprem-jupyterlab-build]
+    needs: build
     if: github.ref == 'refs/heads/main'
     runs-on: pl-ghashr-p1
 
@@ -183,7 +161,7 @@ jobs:
             --data-raw "{\"extra_vars\":{\"repo_name\":\"${REPO_NAME}\",\"target_hosts\":${TARGETS}}}"
 
   deploy_prod:
-    needs: [onprem-jupyterhub-build, onprem-jupyterlab-build]
+    needs: build
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: pl-ghashr-p1   #  This is where the GitHub runner is hosted ; *not* the staging host itself
 

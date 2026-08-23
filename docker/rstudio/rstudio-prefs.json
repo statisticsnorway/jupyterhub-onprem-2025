@@ -1,0 +1,10 @@
+{
+  "save_workspace": "never",
+  "load_workspace": false,
+  "restore_last_project": false,
+  "restore_source_documents": false,
+  "run_rprofile_on_resume": false,
+  "always_save_history": false,
+  "remove_history_duplicates": false,
+  "wrap_tab_navigation": true
+}

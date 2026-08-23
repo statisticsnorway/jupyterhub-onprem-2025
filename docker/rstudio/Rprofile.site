@@ -1,0 +1,21 @@
+# Setting default repo globally
+home <- Sys.getenv("R_HOME")
+.libPaths(c(file.path(home, "lib"), .libPaths()))
+
+r <- getOption("repos")
+r["CRAN"] <- "https://nexus.ssb.no/repository/packagemanager-rstudio-noble/"
+options(repos = r)
+rm(r)
+
+# --- XLConnect: pek Java/JAR-hentingen mot intern Nexus (Maven-proxy) ---
+# Merk: Dette er R-side env, satt tidlig i økten.
+Sys.setenv(
+  XLCONNECT_JAVA_REPO_URL = "https://nexus.ssb.no/repository/maven-public/"
+)
+
+# Deaktiver automatisk lagring av .RData og .Rhistory
+if (interactive()) {
+  Sys.setenv(R_HISTFILE = "/dev/null")  # Forhindrer lagring av .Rhistory
+  options(save.workspace = "no")  # Hindrer lagring av .RData ved avslutning
+  options(load.workspace = FALSE)  # Hindrer lasting av .RData ved oppstart
+}

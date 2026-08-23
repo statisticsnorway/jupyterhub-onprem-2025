@@ -1,0 +1,59 @@
+{% extends "page.html" %}
+{% if announcement_home is string %}
+  {% set announcement = announcement_home %}
+{% endif %}
+{% set rstudio_name = "rstudio" %}
+{% set rstudio_list = user.all_spawners(include_default=False)|selectattr("name", "equalto", rstudio_name)|list %}
+{% set rstudio = rstudio_list[0] if rstudio_list else none %}
+{% block main %}
+  <div class="container">
+    <h1 class="sr-only">JupyterHub home page</h1>
+    <p class="text-center lead mb-4">
+      Signed in as <strong>{{ user.name }}</strong>.
+      You can run JupyterLab + R and RStudio at the same time.
+    </p>
+    <div class="row g-4 justify-content-center">
+      <div class="col-md-5">
+        <div class="card h-100">
+          <div class="card-body text-center">
+            <h2 class="card-title h4">JupyterLab + R</h2>
+            {% if default_server.active %}
+              <a id="stop" role="button" class="btn btn-danger">Stop</a>
+              <a id="start"
+                 role="button"
+                 class="btn btn-primary"
+                 href="{{ url }}">Open JupyterLab + R</a>
+            {% else %}
+              <a id="start"
+                 role="button"
+                 class="btn btn-primary"
+                 href="{{ base_url }}spawn/{{ user.name }}">Start JupyterLab + R</a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      <div class="col-md-5">
+        <div class="card h-100 home-server-row" data-server-name="{{ rstudio_name }}">
+          <div class="card-body text-center">
+            <h2 class="card-title h4">RStudio</h2>
+            <a role="button"
+               class="stop-server btn btn-danger{% if not rstudio or not rstudio.active %} hidden{% endif %}"
+               id="stop-{{ rstudio_name }}">Stop</a>
+            <a role="button"
+               class="start-server btn btn-primary{% if rstudio and rstudio.active %} hidden{% endif %}"
+               id="start-{{ rstudio_name }}"
+               href="{{ base_url }}spawn/{{ user.name }}/{{ rstudio_name }}">Start RStudio</a>
+            <a class="server-link btn btn-primary{% if not rstudio or not rstudio.ready %} hidden{% endif %}"
+               href="{{ user.server_url(rstudio_name) }}">Open RStudio</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock main %}
+{% block script %}
+  {{ super() }}
+  <script type="text/javascript">
+    require(["home"]);
+  </script>
+{% endblock script %}
