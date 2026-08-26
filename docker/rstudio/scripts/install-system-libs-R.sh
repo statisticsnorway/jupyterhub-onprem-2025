@@ -16,4 +16,10 @@ apt_install \
     libpq-dev \
     libzmq3-dev \
     libgit2-dev \
-    pkg-config
+    pkg-config \
+    coinor-libsymphony-dev \
+    coinor-libcgl-dev \
+    coinor-libcbc-dev \
+    coinor-libclp-dev \
+    coinor-libosi-dev \
+    coinor-libcoinutils-dev

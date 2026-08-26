@@ -4,9 +4,31 @@
 ppn <- c(CRAN = "https://packagemanager.posit.co/cran/__linux__/noble/latest")
 cran <- c(CRAN = "https://cloud.r-project.org")
 
+# --vanilla skips Rprofile; without this User-Agent PPM falls back to source.
+options(HTTPUserAgent = sprintf(
+  "R/%s R (%s)",
+  getRversion(),
+  paste(getRversion(), R.version["platform"], R.version["arch"], R.version["os"])
+))
+
 # Use a sane library path (avoid writing into R_HOME/lib)
 .libPaths(unique(c("/usr/local/lib/R/site-library", .libPaths())))
 options(repos = ppn)
+
+# Deriv 4.3.0 compiles against R 4.5 C API (R_ClosureFormals, Rf_allocLang).
+# On R 4.4.0 install the last pure-R release first so later dependencies=TRUE
+# does not try to compile 4.3.0 from source.
+if (getRversion() < "4.5") {
+  if (!requireNamespace("Deriv", quietly = TRUE) ||
+      packageVersion("Deriv") >= "4.3") {
+    message("R ", getRversion(), ": installing Deriv 4.2 (4.3.0 needs R >= 4.5)")
+    install.packages(
+      "https://cloud.r-project.org/src/contrib/Archive/Deriv/Deriv_4.2.tar.gz",
+      repos = NULL,
+      type = "source"
+    )
+  }
+}
 
 message("Repos: ", paste(getOption("repos"), collapse = ", "))
 message(".libPaths(): ", paste(.libPaths(), collapse = " | "))
