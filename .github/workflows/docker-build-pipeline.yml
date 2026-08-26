@@ -1,9 +1,10 @@
 # This workflow will build and push Docker images to the default Artifact Registry in SSB.
 #
 # Overview:
-# 1. Authenticate to Google Cloud
-# 2. Authenticate to Artifact Registry
-# 3. Build and publish Hub, JupyterLab (R 4.4 / 4.6) and RStudio (R 4.4 / 4.6) images
+# 1. Detect which image families changed (hub / lab / rstudio)
+# 2. Authenticate to Google Cloud and Artifact Registry
+# 3. Build and publish only the affected images
+#    (releases and workflow-file changes still build all five)
 #
 # To configure this workflow:
 # 1. Change the values for TEAM_NAME if needed.
@@ -24,16 +25,14 @@ on:
     branches:
       - "main"
     paths:
-      - 'docker/jupyterhub/Dockerfile.hub'
-      - 'docker/jupyterhub/Dockerfile.lab'
-      - 'docker/rstudio/Dockerfile'
-      - '.github/workflows/docker-build-pipeline.yml'
+      - "docker/jupyterhub/**"
+      - "docker/rstudio/**"
+      - ".github/workflows/docker-build-pipeline.yml"
   pull_request:
     paths:
-      - 'docker/jupyterhub/Dockerfile.hub'
-      - 'docker/jupyterhub/Dockerfile.lab'
-      - 'docker/rstudio/Dockerfile'
-      - '.github/workflows/docker-build-pipeline.yml'
+      - "docker/jupyterhub/**"
+      - "docker/rstudio/**"
+      - ".github/workflows/docker-build-pipeline.yml"
 
 env:
   REGISTRY_HOST: europe-north1-docker.pkg.dev
@@ -43,47 +42,181 @@ env:
 
 jobs:
 
+  detect-images:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.select.outputs.matrix }}
+      any: ${{ steps.select.outputs.any }}
+    steps:
+      - name: Checkout repository
+        if: github.event_name != 'release'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Select images to build
+        id: select
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          python3 <<'PY'
+          import json
+          import os
+          import subprocess
+          from pathlib import Path
+
+          HUB = [
+              {
+                  "image_name": "onprem-jupyterhub",
+                  "file": "docker/jupyterhub/Dockerfile.hub",
+                  "context": "docker/jupyterhub",
+                  "r_version": "",
+                  "python_version": "",
+                  "arrow_version": "",
+              }
+          ]
+          # Lab requires R_VERSION, PYTHON_VERSION, ARROW_VERSION (no Dockerfile defaults).
+          LAB = [
+              {
+                  "image_name": "onprem-jupyterlab-r440",
+                  "file": "docker/jupyterhub/Dockerfile.lab",
+                  "context": "docker/jupyterhub",
+                  "r_version": "4.4.0",
+                  "python_version": "313",
+                  "arrow_version": "24.0.0",
+              },
+              {
+                  "image_name": "onprem-jupyterlab-r460",
+                  "file": "docker/jupyterhub/Dockerfile.lab",
+                  "context": "docker/jupyterhub",
+                  "r_version": "4.6.0",
+                  "python_version": "313",
+                  "arrow_version": "24.0.0",
+              },
+          ]
+          # RStudio requires R_VERSION and ARROW_VERSION. PYTHON_VERSION is unused.
+          RSTUDIO = [
+              {
+                  "image_name": "onprem-rstudio-r440",
+                  "file": "docker/rstudio/Dockerfile",
+                  "context": "docker/rstudio",
+                  "r_version": "4.4.0",
+                  "python_version": "",
+                  "arrow_version": "24.0.0",
+              },
+              {
+                  "image_name": "onprem-rstudio-r460",
+                  "file": "docker/rstudio/Dockerfile",
+                  "context": "docker/rstudio",
+                  "r_version": "4.6.0",
+                  "python_version": "",
+                  "arrow_version": "24.0.0",
+              },
+          ]
+
+          HUB_FILES = {
+              "docker/jupyterhub/Dockerfile.hub",
+              "docker/jupyterhub/jupyterhub_config.py",
+              "docker/jupyterhub/upgrade-db.sh",
+              "docker/jupyterhub/start-jupyterhub.sh",
+          }
+          HUB_PREFIXES = ("docker/jupyterhub/templates/",)
+          # Host files are not copied into images; they must not start a lab/hub rebuild.
+          NON_IMAGE_FILES = {
+              "docker/jupyterhub/docker-compose.yml",
+              "docker/jupyterhub/.env",
+              "docker/jupyterhub/.env.staging",
+              "docker/jupyterhub/jupyterhub.service",
+          }
+          WORKFLOW_FILE = ".github/workflows/docker-build-pipeline.yml"
+          ZERO_SHA = "0" * 40
+
+          def is_hub(path: str) -> bool:
+              return path in HUB_FILES or path.startswith(HUB_PREFIXES)
+
+          def is_rstudio(path: str) -> bool:
+              return path.startswith("docker/rstudio/")
+
+          def is_lab(path: str) -> bool:
+              return (
+                  path.startswith("docker/jupyterhub/")
+                  and path not in NON_IMAGE_FILES
+                  and not is_hub(path)
+              )
+
+          def git_diff(base: str, head: str) -> list[str] | None:
+              try:
+                  subprocess.run(
+                      ["git", "fetch", "--no-tags", "--prune", "--depth=1", "origin", base],
+                      check=False,
+                      capture_output=True,
+                  )
+                  out = subprocess.check_output(
+                      ["git", "diff", "--name-only", "-z", f"{base}...{head}"],
+                      text=True,
+                  )
+              except subprocess.CalledProcessError:
+                  return None
+              return [p for p in out.split("\0") if p]
+
+          def changed_files() -> list[str] | None:
+              """Return changed paths, or None when the diff is unavailable (build all)."""
+              event = os.environ["EVENT_NAME"]
+              if event == "release":
+                  return None
+              if event == "pull_request":
+                  return git_diff(os.environ["BASE_SHA"], os.environ["HEAD_SHA"])
+              if event == "push":
+                  base = os.environ["BEFORE_SHA"]
+                  if not base or base == ZERO_SHA:
+                      return None
+                  return git_diff(base, os.environ["HEAD_SHA"])
+              return None
+
+          files = changed_files()
+          if files is None or WORKFLOW_FILE in files:
+              include = HUB + LAB + RSTUDIO
+              reason = "release/unavailable-diff" if files is None else "workflow changed"
+          else:
+              want_hub = any(is_hub(p) for p in files)
+              want_lab = any(is_lab(p) for p in files)
+              want_rstudio = any(is_rstudio(p) for p in files)
+              include = []
+              if want_hub:
+                  include.extend(HUB)
+              if want_lab:
+                  include.extend(LAB)
+              if want_rstudio:
+                  include.extend(RSTUDIO)
+              reason = f"hub={want_hub} lab={want_lab} rstudio={want_rstudio}"
+
+          names = [row["image_name"] for row in include]
+          print(f"Selected images ({reason}): {names or '(none)'}")
+          if files:
+              print("Changed files:")
+              for path in files:
+                  print(f"  {path}")
+
+          matrix = {"include": include}
+          output = Path(os.environ["GITHUB_OUTPUT"])
+          with output.open("a", encoding="utf-8") as fh:
+              fh.write(f"matrix={json.dumps(matrix, separators=(',', ':'))}\n")
+              fh.write(f"any={'true' if include else 'false'}\n")
+          PY
+
   build:
+    needs: detect-images
+    if: needs.detect-images.outputs.any == 'true'
     permissions:
       contents: "read"
       id-token: "write"
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - image_name: onprem-jupyterhub
-            file: docker/jupyterhub/Dockerfile.hub
-            context: docker/jupyterhub
-            r_version: ""
-            python_version: ""
-            arrow_version: ""
-          - image_name: onprem-jupyterlab-r440
-            file: docker/jupyterhub/Dockerfile.lab
-            context: docker/jupyterhub
-            r_version: "4.4.0"
-            python_version: "313"
-            arrow_version: "24.0.0"
-          - image_name: onprem-jupyterlab-r460
-            file: docker/jupyterhub/Dockerfile.lab
-            context: docker/jupyterhub
-            r_version: "4.6.0"
-            python_version: "313"
-            arrow_version: "24.0.0"
-          # context=docker/rstudio so COPY scripts/, start-singleuser.sh,
-          # jupyter_server_config.py, rserver.conf, etc. resolve in that folder.
-          - image_name: onprem-rstudio-r440
-            file: docker/rstudio/Dockerfile
-            context: docker/rstudio
-            r_version: "4.4.0"
-            python_version: ""
-            arrow_version: "24.0.0"
-          - image_name: onprem-rstudio-r460
-            file: docker/rstudio/Dockerfile
-            context: docker/rstudio
-            r_version: "4.6.0"
-            python_version: ""
-            arrow_version: "24.0.0"
+      matrix: ${{ fromJson(needs.detect-images.outputs.matrix) }}
 
     steps:
     - name: Checkout repository
@@ -125,6 +258,21 @@ jobs:
           type=semver,pattern={{version}}
           type=raw,value=${{ env.TAG }}, enable=true
 
+    - name: Compose Docker build-args from matrix
+      id: build_args
+      env:
+        R_VERSION: ${{ matrix.r_version }}
+        PYTHON_VERSION: ${{ matrix.python_version }}
+        ARROW_VERSION: ${{ matrix.arrow_version }}
+      run: |
+        {
+          echo "args<<EOF"
+          [ -n "$R_VERSION" ] && echo "R_VERSION=$R_VERSION"
+          [ -n "$PYTHON_VERSION" ] && echo "PYTHON_VERSION=$PYTHON_VERSION"
+          [ -n "$ARROW_VERSION" ] && echo "ARROW_VERSION=$ARROW_VERSION"
+          echo "EOF"
+        } >> "$GITHUB_OUTPUT"
+
     - name: Build and push docker image to Artifact Registry
       uses: docker/build-push-action@v5
       with:
@@ -134,16 +282,13 @@ jobs:
         push: true
         tags: ${{ steps.build_metadata.outputs.tags }}
         labels: ${{ steps.build_metadata.outputs.labels }}
-        build-args: |
-          R_VERSION=${{ matrix.r_version }}
-          PYTHON_VERSION=${{ matrix.python_version }}
-          ARROW_VERSION=${{ matrix.arrow_version }}
-        cache-from: type=gha,scope=${{ matrix.image_name }}
-        cache-to: type=gha,mode=max,scope=${{ matrix.image_name }}
+        build-args: ${{ steps.build_args.outputs.args }}
+        cache-from: type=gha,scope=${{ matrix.image_name }}-r${{ matrix.r_version }}
+        cache-to: type=gha,mode=max,scope=${{ matrix.image_name }}-r${{ matrix.r_version }}
 
   deploy_staging:
     needs: build
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && needs.build.result == 'success'
     runs-on: pl-ghashr-p1
 
     steps:
@@ -162,7 +307,7 @@ jobs:
 
   deploy_prod:
     needs: build
-    if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/') && needs.build.result == 'success'
     runs-on: pl-ghashr-p1   #  This is where the GitHub runner is hosted ; *not* the staging host itself
 
     steps:

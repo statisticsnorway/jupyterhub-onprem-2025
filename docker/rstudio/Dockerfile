@@ -67,8 +67,10 @@ USER 1000
 # Install gitconfig file from kvakk-git-tools
 # RUN /opt/install-gitconfig.sh
 
-# R Config (overridden at build time: 4.4.0 / 4.6.0)
-ARG R_VERSION="4.4.0"
+# R_VERSION comes from CI matrix / --build-arg (4.4.0 or 4.6.0). No Dockerfile default:
+# a missing arg used to silently install 4.4.0 into images tagged r460.
+ARG R_VERSION
+RUN test -n "${R_VERSION}" || { echo "R_VERSION build-arg is required (e.g. 4.4.0 or 4.6.0)"; exit 1; }
 ENV R_VERSION=${R_VERSION}
 ENV R_HOME="/usr/local/lib/R"
 ENV DEFAULT_USER="${USERNAME}"
@@ -154,7 +156,9 @@ RUN /opt/install-system-libs.sh && \
 
 
 # Install Arrow, og sjekk https://cran.r-project.org/src/contrib/Archive/arrow/ om R-versjonen ligger der. Slik at du treffer riktig versjon. Bruk også "apt-cache madison libarrow-dev"
-ARG ARROW_VERSION="24.0.0"
+# ARROW_VERSION comes from CI matrix / --build-arg (e.g. 24.0.0).
+ARG ARROW_VERSION
+RUN test -n "${ARROW_VERSION}" || { echo "ARROW_VERSION build-arg is required (e.g. 24.0.0)"; exit 1; }
 ENV ARROW_VERSION=${ARROW_VERSION}
 RUN /opt/install-arrow.sh
 

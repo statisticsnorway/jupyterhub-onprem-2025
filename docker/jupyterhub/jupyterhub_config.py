@@ -209,8 +209,11 @@ else:
         "/var/lib/sss/pipes": {"bind": "/var/lib/sss/pipes", "mode": "ro,Z"},
         "/var/lib/sss/mc":    {"bind": "/var/lib/sss/mc",    "mode": "rw,Z"},
     }
-    # Jupyter/RStudio start here (SSSD user). {username} is filled by the spawner.
-    c.DockerSpawner.notebook_dir = "/ssb/bruker/{username}"
+    # Jupyter/RStudio start here (SSSD user). DockerSpawner 14 expands
+    # {username} to the escaped container name (admin-paf → admin-2dpaf).
+    # NFS homes use the real AD name, so notebook_dir must use {raw_username}.
+    # host_homedir_format_string formats with user.name (unescaped) already.
+    c.DockerSpawner.notebook_dir = "/ssb/bruker/{raw_username}"
     # Also bind that share to /home/{username} ($HOME for the AD user).
     c.SystemUserSpawner.host_homedir_format_string = "/ssb/bruker/{username}"
 # Allowing users to delete non-empty directories in the jupyterlab file-explorer

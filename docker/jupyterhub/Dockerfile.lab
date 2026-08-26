@@ -115,9 +115,10 @@ RUN apt-get update && \
 # R and Java installation and configuration
 # ------------------------------------------------------------------------------
 
-# CI builds this image twice: R_VERSION=4.4.0 and R_VERSION=4.6.0
-# (rocker-versioned2 tags R4.4.0 / R4.6.0).
-ARG R_VERSION="4.4.0"
+# R_VERSION comes from CI matrix / --build-arg (4.4.0 or 4.6.0). No Dockerfile default:
+# a missing arg used to silently install 4.4.0 into images tagged r460.
+ARG R_VERSION
+RUN test -n "${R_VERSION}" || { echo "R_VERSION build-arg is required (e.g. 4.4.0 or 4.6.0)"; exit 1; }
 ENV R_VERSION=${R_VERSION}
 ENV R_HOME="/usr/local/lib/R"
 ENV DEFAULT_USER="${USERNAME}"
@@ -129,8 +130,9 @@ ENV JAVA_HOME="/usr/lib/jvm/java-$JAVA_VERSION-openjdk-amd64"
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
 
-# Apache Arrow configuration
-ARG ARROW_VERSION="24.0.0"
+# ARROW_VERSION comes from CI matrix / --build-arg (e.g. 24.0.0).
+ARG ARROW_VERSION
+RUN test -n "${ARROW_VERSION}" || { echo "ARROW_VERSION build-arg is required (e.g. 24.0.0)"; exit 1; }
 ENV ARROW_VERSION=${ARROW_VERSION}
 
 # Use RStudio's package manager to download packages as binaries
@@ -149,7 +151,8 @@ RUN mkdir -p /rocker_scripts && \
     chown -R ${USERNAME}:${GROUPNAME} /rocker_scripts/ && \
     chmod -R 700 /rocker_scripts/
 
-# Install Oracle and R from source and link jwsacruncher
+# Pass the version explicitly so a stale BuildKit/GHA cache cannot install 4.4.0
+# into an image tagged r460. Fail the build if R does not match the ARG.
 RUN /rocker_scripts/install_R_source.sh && \
     /opt/scripts/install-java.sh && \
     /rocker_scripts/setup_R.sh && \
@@ -199,7 +202,9 @@ RUN sed -i "/^PATH=/c\PATH=$PATH" "$R_HOME/etc/Renviron.site" && \
 # ------------------------------------------------------------------------------
 # Python/Conda installation and configuration
 # ------------------------------------------------------------------------------
-ARG PYTHON_VERSION="313"
+# PYTHON_VERSION comes from CI matrix / --build-arg (e.g. 313 for Miniconda py313).
+ARG PYTHON_VERSION
+RUN test -n "${PYTHON_VERSION}" || { echo "PYTHON_VERSION build-arg is required (e.g. 313)"; exit 1; }
 ENV PYTHON_VERSION=${PYTHON_VERSION}
 
 # Set template version for ssb-project-cli
