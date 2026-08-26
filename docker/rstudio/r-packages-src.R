@@ -21,9 +21,9 @@ options(repos = ppn)
 if (getRversion() < "4.5") {
   if (!requireNamespace("Deriv", quietly = TRUE) ||
       packageVersion("Deriv") >= "4.3") {
-    message("R ", getRversion(), ": installing Deriv 4.2 (4.3.0 needs R >= 4.5)")
+    message("R ", getRversion(), ": installing Deriv 4.2.0 (4.3.0 needs R >= 4.5)")
     install.packages(
-      "https://cloud.r-project.org/src/contrib/Archive/Deriv/Deriv_4.2.tar.gz",
+      "https://cloud.r-project.org/src/contrib/Archive/Deriv/Deriv_4.2.0.tar.gz",
       repos = NULL,
       type = "source"
     )

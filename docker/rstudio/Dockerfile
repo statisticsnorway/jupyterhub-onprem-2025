@@ -96,7 +96,10 @@ ENV CRAN="https://p3m.dev/cran/__linux__/noble/latest"
 ENV S6_VERSION=v2.1.0.2
 ENV RSTUDIO_VERSION=stable
 ENV DEFAULT_USER=rstudio
-ENV PANDOC_VERSION=default
+# Pin a concrete pandoc release. PANDOC_VERSION=default becomes "latest" when
+# RStudio is not installed yet, and rocker then scrapes api.github.com for a
+# .deb URL. That fails instantly (empty URL) on GitHub Actions rate limits.
+ENV PANDOC_VERSION=3.10.2
 ENV QUARTO_VERSION=default
 
 # LaTeX ENVs
@@ -115,10 +118,11 @@ RUN /rocker_scripts/install_quarto.sh
 RUN /rocker_scripts/install_tidyverse.sh
 # RUN /rocker_scripts/install_verse.sh
 RUN /rocker_scripts/install_geospatial.sh
-RUN /rocker_scripts/install_pandoc.sh
 # R4.4.0 rocker scripts still apt-get python-setuptools (Python 2), which is gone on Ubuntu Noble.
+# Install RStudio before pandoc so PANDOC_VERSION=default can use the bundled binary.
 RUN sed -i -E 's/(^|[^[:alnum:]])python-setuptools/\1python3-setuptools/g' /rocker_scripts/*.sh
 RUN /rocker_scripts/install_rstudio.sh
+RUN /rocker_scripts/install_pandoc.sh
 
 # Re-install system libs that may have been removed by autoremove in rocker scripts
 RUN /opt/install-system-libs.sh && \
