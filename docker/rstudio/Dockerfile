@@ -1,4 +1,4 @@
-FROM docker.io/library/ubuntu:24.04
+FROM docker.io/library/ubuntu:26.04
 
 # Spawned by JupyterHub (jupyter-rsession-proxy), not as a standalone RStudio compose stack.
 # CI builds this image twice: R_VERSION=4.4.0 and R_VERSION=4.6.0.
@@ -75,8 +75,9 @@ ENV R_VERSION=${R_VERSION}
 ENV R_HOME="/usr/local/lib/R"
 ENV DEFAULT_USER="${USERNAME}"
 
-# Java configuration
-ARG JAVA_VERSION="17"
+# JAVA_VERSION comes from CI matrix / --build-arg (17 for R 4.4, 21 for R 4.6).
+ARG JAVA_VERSION
+RUN test -n "${JAVA_VERSION}" || { echo "JAVA_VERSION build-arg is required (e.g. 17 or 21)"; exit 1; }
 ENV JAVA_VERSION=${JAVA_VERSION}
 ENV JAVA_HOME="/usr/lib/jvm/java-$JAVA_VERSION-openjdk-amd64"
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
@@ -85,14 +86,24 @@ USER root
 
 RUN apt-get upgrade --fix-missing -y
 
-# Install R using rocker's install scripts for the selected R_VERSION
+# Install R using rocker's install scripts for the selected R_VERSION.
+# rocker-versioned2 does not know Ubuntu 26.04 (resolute) yet: hdf4 package
+# rename + treat resolute like noble when fetching the RStudio deb (dapla PR #444).
 RUN git clone --branch R${R_VERSION} --depth 1 https://github.com/rocker-org/rocker-versioned2.git /tmp/rocker-versioned2 && \
     cp -r /tmp/rocker-versioned2/scripts/ /rocker_scripts/ && \
     chown -R ${USERNAME}:${GROUPNAME} /rocker_scripts/ && \
     chmod -R 700 /rocker_scripts/ && \
-    /rocker_scripts/install_R_source.sh
+    sed -i 's/libhdf4-alt-dev/libhdf4-dev/g' /rocker_scripts/install_geospatial.sh && \
+    sed -i 's/\[ "$UBUNTU_CODENAME" = "noble" \]/[ "$UBUNTU_CODENAME" = "noble" ] || [ "$UBUNTU_CODENAME" = "resolute" ]/' /rocker_scripts/install_rstudio.sh && \
+    /rocker_scripts/install_R_source.sh && \
+    echo "${R_HOME}/lib" > /etc/ld.so.conf.d/R.conf && \
+    ldconfig && \
+    Rscript --vanilla -e 'stopifnot(identical(as.character(getRversion()), Sys.getenv("R_VERSION")))'
 
-ENV CRAN="https://p3m.dev/cran/__linux__/noble/latest"
+# CRAN_DISTRO comes from CI matrix (resolute on Ubuntu 26.04).
+ARG CRAN_DISTRO
+RUN test -n "${CRAN_DISTRO}" || { echo "CRAN_DISTRO build-arg is required (e.g. resolute)"; exit 1; }
+ENV CRAN="https://packagemanager.posit.co/cran/__linux__/${CRAN_DISTRO}/latest"
 
 # RStudio ENVs
 ENV S6_VERSION=v2.1.0.2
@@ -111,7 +122,7 @@ ENV PATH=$PATH:/usr/local/texlive/bin/linux
 COPY jwsacruncher-2.2.4.zip /tmp/jwsacruncher-2.2.4.zip
 
 # Set up R (RSPM, OpenBLAS, littler, addtional packages)
-RUN /opt/install-java.sh
+RUN ldconfig && /opt/install-java.sh
 # Install R
 RUN /rocker_scripts/setup_R.sh
 # Install RStudio
@@ -130,12 +141,6 @@ RUN /rocker_scripts/install_pandoc.sh
 RUN /opt/install-system-libs.sh && \
     # Install additional system libs needed by R packages
     /opt/install-system-libs-R.sh && \
-    # arrow >= 21 requires cmake >= 3.26 when users install into renv projects
-    CMAKE_VERSION="$(cmake --version | awk 'NR == 1 { print $3 }')" && \
-    if ! dpkg --compare-versions "$CMAKE_VERSION" ge "3.26"; then \
-    echo "cmake >= 3.26 is required for arrow; found $CMAKE_VERSION"; \
-    exit 1; \
-    fi && \
     # Configure R for CUDA if parent image has CUDA
     if ! [[ -z "${CUDA_VERSION}" ]]; then /rocker_scripts/config_R_cuda.sh; fi && \
     # Install useful additional packages
@@ -155,18 +160,12 @@ RUN /opt/install-system-libs.sh && \
     rm -rf /var/lib/apt/lists/*
 
 
-# Install Arrow, og sjekk https://cran.r-project.org/src/contrib/Archive/arrow/ om R-versjonen ligger der. Slik at du treffer riktig versjon. Bruk også "apt-cache madison libarrow-dev"
+# Install Arrow from Posit manylinux binaries (no APT libarrow).
 # ARROW_VERSION comes from CI matrix / --build-arg (e.g. 24.0.0).
 ARG ARROW_VERSION
 RUN test -n "${ARROW_VERSION}" || { echo "ARROW_VERSION build-arg is required (e.g. 24.0.0)"; exit 1; }
 ENV ARROW_VERSION=${ARROW_VERSION}
 RUN /opt/install-arrow.sh
-
-ENV ARROW_HOME="/usr"
-ENV ARROW_USE_PKG_CONFIG="TRUE"
-ENV LIBARROW_BINARY="FALSE"
-ENV LIBARROW_BUILD="FALSE"
-ENV PKG_CONFIG_PATH="/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig"
 
 # Setting up environment variables for Oracle
 ENV OCI_INC=/usr/include/oracle/21/client64
@@ -296,8 +295,6 @@ RUN set -eux; \
     /usr/local/texlive/bin/x86_64-linux/tlmgr install amsfonts booktabs; \
     # optional: clean up TL backup cache to keep the layer smaller
     rm -rf /usr/local/texlive/*/tlpkg/backups
-
-RUN apt-get update && apt-get install -y --no-install-recommends default-jdk
 
 RUN locale-gen nb_NO.UTF-8 && update-locale LANG=nb_NO.UTF-8 LC_ALL=nb_NO.UTF-8
 

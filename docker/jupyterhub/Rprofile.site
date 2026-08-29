@@ -1,17 +1,24 @@
 # Setting default repo globally
-default_cran <- "https://nexus.ssb.no/repository/packagemanager-rstudio-noble/"
-legacy_posit_cran <- "https://packagemanager.posit.co/cran/__linux__/noble"
+default_cran <- "https://nexus.ssb.no/repository/packagemanager-rstudio-resolute/"
+legacy_posit_prefixes <- c(
+  "https://packagemanager.posit.co/cran/__linux__/resolute",
+  "https://p3m.dev/cran/__linux__/resolute"
+)
 
 home <- Sys.getenv("R_HOME")
 .libPaths(c(file.path(home, "lib"), .libPaths()))
 
+r_ver <- Sys.getenv("R_VERSION", unset = as.character(getRversion()))
+r_minor <- sub("^([0-9]+\\.[0-9]+).*", "\\1", r_ver)
+
 cran <- Sys.getenv("CRAN", unset = default_cran)
-if (startsWith(cran, legacy_posit_cran)) {
+if (any(startsWith(cran, legacy_posit_prefixes))) {
   cran <- default_cran
 }
 Sys.setenv(CRAN = cran)
 
-r <- getOption("repos")
-r["CRAN"] <- cran
-options(repos = r)
-rm(default_cran, legacy_posit_cran, cran, r)
+options(repos = c(
+  P3M = sprintf("https://nexus.ssb.no/repository/r-p3m/%s", r_minor),
+  CRAN = cran
+))
+options(renv.config.repos.override = getOption("repos"))

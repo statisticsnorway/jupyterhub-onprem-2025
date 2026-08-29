@@ -76,9 +76,11 @@ jobs:
                   "r_version": "",
                   "python_version": "",
                   "arrow_version": "",
+                  "java_version": "",
+                  "cran_distro": "",
               }
           ]
-          # Lab requires R_VERSION, PYTHON_VERSION, ARROW_VERSION (no Dockerfile defaults).
+          # Lab requires R_VERSION, PYTHON_VERSION, ARROW_VERSION, JAVA_VERSION, CRAN_DISTRO.
           LAB = [
               {
                   "image_name": "onprem-jupyterlab-r440",
@@ -87,6 +89,8 @@ jobs:
                   "r_version": "4.4.0",
                   "python_version": "313",
                   "arrow_version": "24.0.0",
+                  "java_version": "17",
+                  "cran_distro": "resolute",
               },
               {
                   "image_name": "onprem-jupyterlab-r460",
@@ -95,9 +99,11 @@ jobs:
                   "r_version": "4.6.0",
                   "python_version": "313",
                   "arrow_version": "24.0.0",
+                  "java_version": "21",
+                  "cran_distro": "resolute",
               },
           ]
-          # RStudio requires R_VERSION and ARROW_VERSION. PYTHON_VERSION is unused.
+          # RStudio requires R_VERSION, ARROW_VERSION, JAVA_VERSION, CRAN_DISTRO.
           RSTUDIO = [
               {
                   "image_name": "onprem-rstudio-r440",
@@ -106,6 +112,8 @@ jobs:
                   "r_version": "4.4.0",
                   "python_version": "",
                   "arrow_version": "24.0.0",
+                  "java_version": "17",
+                  "cran_distro": "resolute",
               },
               {
                   "image_name": "onprem-rstudio-r460",
@@ -114,6 +122,8 @@ jobs:
                   "r_version": "4.6.0",
                   "python_version": "",
                   "arrow_version": "24.0.0",
+                  "java_version": "21",
+                  "cran_distro": "resolute",
               },
           ]
 
@@ -264,12 +274,16 @@ jobs:
         R_VERSION: ${{ matrix.r_version }}
         PYTHON_VERSION: ${{ matrix.python_version }}
         ARROW_VERSION: ${{ matrix.arrow_version }}
+        JAVA_VERSION: ${{ matrix.java_version }}
+        CRAN_DISTRO: ${{ matrix.cran_distro }}
       run: |
         {
           echo "args<<EOF"
           [ -n "$R_VERSION" ] && echo "R_VERSION=$R_VERSION"
           [ -n "$PYTHON_VERSION" ] && echo "PYTHON_VERSION=$PYTHON_VERSION"
           [ -n "$ARROW_VERSION" ] && echo "ARROW_VERSION=$ARROW_VERSION"
+          [ -n "$JAVA_VERSION" ] && echo "JAVA_VERSION=$JAVA_VERSION"
+          [ -n "$CRAN_DISTRO" ] && echo "CRAN_DISTRO=$CRAN_DISTRO"
           echo "EOF"
         } >> "$GITHUB_OUTPUT"
 
@@ -286,9 +300,21 @@ jobs:
         cache-from: type=gha,scope=${{ matrix.image_name }}-r${{ matrix.r_version }}
         cache-to: type=gha,mode=max,scope=${{ matrix.image_name }}-r${{ matrix.r_version }}
 
+  smoke:
+    needs: [detect-images, build]
+    if: needs.build.result == 'success'
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/r-package-smoke.yml
+    secrets: inherit
+    with:
+      matrix: ${{ needs.detect-images.outputs.matrix }}
+      image_tag: ${{ env.TAG }}
+
   deploy_staging:
-    needs: build
-    if: github.ref == 'refs/heads/main' && needs.build.result == 'success'
+    needs: [build, smoke]
+    if: github.ref == 'refs/heads/main' && needs.build.result == 'success' && needs.smoke.result == 'success'
     runs-on: pl-ghashr-p1
 
     steps:
@@ -306,8 +332,8 @@ jobs:
             --data-raw "{\"extra_vars\":{\"repo_name\":\"${REPO_NAME}\",\"target_hosts\":${TARGETS}}}"
 
   deploy_prod:
-    needs: build
-    if: startsWith(github.ref, 'refs/tags/') && needs.build.result == 'success'
+    needs: [build, smoke]
+    if: startsWith(github.ref, 'refs/tags/') && needs.build.result == 'success' && needs.smoke.result == 'success'
     runs-on: pl-ghashr-p1   #  This is where the GitHub runner is hosted ; *not* the staging host itself
 
     steps:
