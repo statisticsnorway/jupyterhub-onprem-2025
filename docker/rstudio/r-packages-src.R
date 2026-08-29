@@ -4,8 +4,9 @@
 # (GHA cannot rely on Nexus; runtime Rprofile.site points at Nexus mirrors.)
 #
 # P3M manylinux URL must use major.minor (4.4), not patch (4.4.0).
-# Use Depends/Imports/LinkingTo only — dependencies=TRUE also pulls Suggests
-# (e.g. Deriv), which is source-only and fails to compile on R 4.4.
+# Use Depends/Imports/LinkingTo only (not Suggests). That is not enough to
+# skip Deriv: doBy Imports it, and simputation → VIM → car → pbkrtest → doBy.
+# Deriv 4.3.0 needs R >= 4.5 C API (R_ClosureFormals, Rf_allocLang).
 
 r_ver <- Sys.getenv("R_VERSION", unset = as.character(getRversion()))
 r_minor <- sub("^([0-9]+\\.[0-9]+).*", "\\1", r_ver)
@@ -29,6 +30,23 @@ options(HTTPUserAgent = sprintf(
 
 .libPaths(unique(c("/usr/local/lib/R/site-library", .libPaths())))
 options(repos = c(P3M = manylinux, CRAN = noble))
+
+# Pin the last pure-R Deriv before later install.packages() pulls 4.3.0 as a
+# hard dependency of doBy. Confirmed locally: 4.3.0 fails to compile on R 4.4,
+# 4.2.0 installs. R 4.6 can use latest.
+if (getRversion() < "4.5") {
+  if (!requireNamespace("Deriv", quietly = TRUE) ||
+      packageVersion("Deriv") >= "4.3") {
+    message("R ", getRversion(), ": installing Deriv 4.2.0 (4.3.0 needs R >= 4.5)")
+    install.packages(
+      "https://cloud.r-project.org/src/contrib/Archive/Deriv/Deriv_4.2.0.tar.gz",
+      repos = NULL,
+      type = "source"
+    )
+  }
+  stopifnot(requireNamespace("Deriv", quietly = TRUE))
+  stopifnot(packageVersion("Deriv") < "4.3")
+}
 
 message("R_VERSION: ", r_ver, " → path: ", r_minor)
 message("Repos: ", paste(getOption("repos"), collapse = ", "))

@@ -21,6 +21,19 @@ options(HTTPUserAgent = sprintf(
 ))
 options(repos = c(P3M = manylinux, CRAN = noble))
 
+# doBy Imports Deriv. Deriv 4.3.0 needs R >= 4.5 C API; pin 4.2.0 on R 4.4.
+if (getRversion() < "4.5") {
+  if (!requireNamespace("Deriv", quietly = TRUE) ||
+      packageVersion("Deriv") >= "4.3") {
+    message(">> R ", getRversion(), ": installing Deriv 4.2.0 (4.3.0 needs R >= 4.5)")
+    install.packages(
+      "https://cloud.r-project.org/src/contrib/Archive/Deriv/Deriv_4.2.0.tar.gz",
+      repos = NULL,
+      type = "source"
+    )
+  }
+}
+
 message(">> NOTE: This installer runs in LOG-ONLY mode; failures do NOT fail the image build.")
 message(">> R_VERSION: ", r_ver, " → path: ", r_minor)
 
