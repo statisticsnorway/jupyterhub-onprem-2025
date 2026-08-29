@@ -72,6 +72,7 @@ WORKDIR /srv/jupyterhub
 
 # copy jupyterhub_config.py to container
 COPY jupyterhub_config.py /srv/jupyterhub/
+COPY templates /srv/jupyterhub/templates
 
 # Copy and run database upgrade script during build
 COPY upgrade-db.sh /tmp/upgrade-db.sh

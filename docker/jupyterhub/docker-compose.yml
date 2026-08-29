@@ -30,9 +30,10 @@ services:
       - "/home/jupyterhub/.docker:/root/.docker:ro"
 
     environment:
-      # Use the playground image we built
-      DOCKER_NOTEBOOK_IMAGE: ${DOCKER_NOTEBOOK_IMAGE}
-      # DOCKER_NOTEBOOK_IMAGE: jupyterhub-onprem
+      DOCKER_NOTEBOOK_IMAGE_R440: ${DOCKER_NOTEBOOK_IMAGE_R440}
+      DOCKER_NOTEBOOK_IMAGE_R460: ${DOCKER_NOTEBOOK_IMAGE_R460}
+      DOCKER_RSTUDIO_IMAGE_R440: ${DOCKER_RSTUDIO_IMAGE_R440}
+      DOCKER_RSTUDIO_IMAGE_R460: ${DOCKER_RSTUDIO_IMAGE_R460}
       # Define the internal network name
       DOCKER_NETWORK_NAME: jupyterhub-network
       # Using this run command (optional)

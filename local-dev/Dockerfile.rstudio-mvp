@@ -1,0 +1,48 @@
+# Minimal RStudio image for local Hub proof-of-concept.
+# Not the full SSB rstudio-onprem image — just enough to spawn RStudio via jupyter-rsession-proxy.
+FROM rocker/rstudio:4.4.0
+
+USER root
+
+RUN mkdir -p /home/rstudio/work /tmp/jupyter-runtime && \
+    chown -R rstudio:rstudio /home/rstudio/work && \
+    chmod 1777 /tmp/jupyter-runtime
+
+# Jammy pip (22.x) has no --break-system-packages. Do not hide install failures with || true.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends python3 python3-pip python3-venv && \
+    python3 -m pip install --no-cache-dir \
+        jupyterhub==5.3.0 \
+        jupyter_server \
+        jupyterlab \
+        jupyter-server-proxy \
+        jupyter-rsession-proxy && \
+    command -v jupyterhub-singleuser && \
+    python3 -c "import jupyterhub; assert jupyterhub.__version__.startswith('5.3')" && \
+    mkdir -p /etc/jupyter/jupyter_server_config.d && \
+    printf '%s\n' '{"ServerApp":{"jpserver_extensions":{"jupyter_server_proxy":true}}}' \
+      > /etc/jupyter/jupyter_server_config.d/jupyter-server-proxy.json && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY docker/rstudio/rserver.conf /etc/rstudio/rserver.conf
+COPY docker/rstudio/start-singleuser.sh /usr/local/bin/start-singleuser.sh
+COPY docker/rstudio/jupyter_server_config.py /usr/etc/jupyter/jupyter_server_config.py
+# JUPYTER_PLATFORM_DIRS=1 reads /usr/etc/jupyter and /etc/xdg/jupyter, not /etc/jupyter.
+RUN chmod 0755 /usr/local/bin/start-singleuser.sh && \
+    mkdir -p /usr/etc/jupyter/jupyter_server_config.d /etc/xdg/jupyter /etc/xdg/jupyter/jupyter_server_config.d && \
+    cp /usr/etc/jupyter/jupyter_server_config.py /etc/xdg/jupyter/jupyter_server_config.py && \
+    printf '%s\n' '{"ServerApp":{"jpserver_extensions":{"jupyter_server_proxy":true}}}' \
+      > /usr/etc/jupyter/jupyter_server_config.d/jupyter-server-proxy.json && \
+    cp /usr/etc/jupyter/jupyter_server_config.d/jupyter-server-proxy.json \
+       /etc/xdg/jupyter/jupyter_server_config.d/jupyter-server-proxy.json
+
+ENV JUPYTER_RUNTIME_DIR=/tmp/jupyter-runtime
+ENV JUPYTER_PLATFORM_DIRS=1
+ENV JUPYTER_RSESSION_PROXY_USE_SOCKET=no
+ENV RSERVER_TIMEOUT=60
+ENV PATH="/usr/local/bin:/usr/lib/rstudio-server/bin:${PATH}"
+
+USER rstudio
+WORKDIR /home/rstudio
+ENTRYPOINT ["/usr/local/bin/start-singleuser.sh"]
+CMD ["jupyterhub-singleuser"]

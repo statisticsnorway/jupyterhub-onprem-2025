@@ -1,0 +1,194 @@
+# Smoke-test R packages in Lab and RStudio images after a successful Docker build.
+#
+# Called from docker-build-pipeline.yml (PR, push to main, release).
+# workflow_dispatch re-runs tests against an existing GAR tag without rebuilding.
+
+name: R package smoke
+permissions:
+  contents: read
+  id-token: write
+
+on:
+  workflow_call:
+    inputs:
+      matrix:
+        description: detect-images matrix JSON from docker-build-pipeline
+        required: true
+        type: string
+      image_tag:
+        description: GAR tag that was just pushed (same as docker-build-pipeline TAG)
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: GAR image tag to pull (e.g. latest)
+        required: true
+        default: latest
+        type: string
+
+env:
+  REGISTRY_HOST: europe-north1-docker.pkg.dev
+  REGISTRY: europe-north1-docker.pkg.dev/${{ secrets.GAR_PROJECT_ID }}
+  TEAM_NAME: itinfra-bakkesyst
+  FELLESR_LIST_URL: https://raw.githubusercontent.com/statisticsnorway/ssb-fellesr/refs/heads/main/R_pakker_standardinstallasjon.R
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2.1.2
+        with:
+          workload_identity_provider: "projects/${{ secrets.GAR_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions/providers/gh-actions"
+          service_account: "gh-actions-${{ env.TEAM_NAME }}@${{ secrets.GAR_PROJECT_ID }}.iam.gserviceaccount.com"
+          token_format: access_token
+          create_credentials_file: true
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure docker auth helper
+        run: gcloud auth configure-docker ${{ env.REGISTRY_HOST }} --quiet
+
+      - name: Pull images and smoke-test R packages
+        env:
+          MATRIX_JSON: ${{ inputs.matrix }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          FELLESR_LIST_URL: ${{ env.FELLESR_LIST_URL }}
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          import json
+          import os
+          import subprocess
+          import sys
+          import urllib.request
+          from pathlib import Path
+
+          default_images = [
+              {"image_name": "onprem-jupyterlab-r440", "r_version": "4.4.0"},
+              {"image_name": "onprem-jupyterlab-r460", "r_version": "4.6.0"},
+              {"image_name": "onprem-rstudio-r440", "r_version": "4.4.0"},
+              {"image_name": "onprem-rstudio-r460", "r_version": "4.6.0"},
+          ]
+
+          raw = os.environ.get("MATRIX_JSON") or ""
+          if raw.strip():
+              include = json.loads(raw).get("include") or []
+          else:
+              include = default_images
+
+          rows = [row for row in include if row.get("r_version")]
+          if not rows:
+              print("No Lab/RStudio images in matrix; skipping smoke tests.")
+              sys.exit(0)
+
+          registry = os.environ["REGISTRY"]
+          team = os.environ["TEAM_NAME"]
+          tag = os.environ["IMAGE_TAG"]
+          list_url = os.environ["FELLESR_LIST_URL"]
+
+          list_path = Path("R_pakker_standardinstallasjon.R")
+          print(f"Fetching package list from {list_url}", flush=True)
+          urllib.request.urlretrieve(list_url, list_path)
+
+          smoke_r = Path("r-package-smoke.R")
+          smoke_r.write_text(
+              "\n".join(
+                  [
+                      'list_file <- "/tmp/R_pakker_standardinstallasjon.R"',
+                      "env <- new.env()",
+                      "sys.source(list_file, envir = env)",
+                      "pkgs <- env$pakker",
+                      'if (!length(pkgs)) stop("Could not parse package list from ", list_file)',
+                      "failed <- character()",
+                      "for (pkg in pkgs) {",
+                      "  if (!requireNamespace(pkg, quietly = TRUE)) {",
+                      '    message(pkg, " MISSING")',
+                      "    next",
+                      "  }",
+                      "  ok <- tryCatch(",
+                      "    {",
+                      "      library(pkg, character.only = TRUE)",
+                      '      message(pkg, " ", as.character(packageVersion(pkg)))',
+                      "      TRUE",
+                      "    },",
+                      "    error = function(e) {",
+                      '      message(pkg, " LOAD_FAIL: ", conditionMessage(e))',
+                      "      FALSE",
+                      "    }",
+                      "  )",
+                      "  if (!isTRUE(ok)) failed <- c(failed, pkg)",
+                      "}",
+                      "if (length(failed)) {",
+                      '  message("Installed packages that failed to load: ", paste(failed, collapse = ", "))',
+                      "  quit(status = 1)",
+                      "}",
+                      'message("Smoke OK: all installed packages from the fellesr list loaded.")',
+                      "quit(status = 0)",
+                      "",
+                  ]
+              ),
+              encoding="utf-8",
+          )
+
+          tags_to_try = [tag]
+          pr_number = os.environ.get("PR_NUMBER") or ""
+          if pr_number:
+              tags_to_try.append(f"pr-{pr_number}")
+          if os.environ.get("GITHUB_REF") == "refs/heads/main":
+              tags_to_try.append("latest")
+
+          def pull_image(name: str) -> str:
+              last_error = None
+              for candidate in tags_to_try:
+                  image = f"{registry}/{team}-docker/{name}:{candidate}"
+                  print(f"==> docker pull {image}", flush=True)
+                  result = subprocess.run(["docker", "pull", image], check=False)
+                  if result.returncode == 0:
+                      return image
+                  last_error = result.returncode
+              raise RuntimeError(
+                  f"Could not pull {name} with tags {tags_to_try} (last={last_error})"
+              )
+
+          failures = []
+          for row in rows:
+              name = row["image_name"]
+              image = pull_image(name)
+              print(f"==> smoke {image}", flush=True)
+              result = subprocess.run(
+                  [
+                      "docker",
+                      "run",
+                      "--rm",
+                      "--user",
+                      "1000:100",
+                      "--entrypoint",
+                      "Rscript",
+                      "-e",
+                      "HOME=/tmp",
+                      "-v",
+                      f"{smoke_r.resolve()}:/tmp/r-package-smoke.R:ro",
+                      "-v",
+                      f"{list_path.resolve()}:/tmp/R_pakker_standardinstallasjon.R:ro",
+                      image,
+                      "--vanilla",
+                      "/tmp/r-package-smoke.R",
+                  ],
+                  check=False,
+              )
+              if result.returncode != 0:
+                  failures.append(name)
+
+          if failures:
+              print("Smoke failed for: " + ", ".join(failures), file=sys.stderr)
+              sys.exit(1)
+          print("All Lab/RStudio smoke tests passed.")
+          PY

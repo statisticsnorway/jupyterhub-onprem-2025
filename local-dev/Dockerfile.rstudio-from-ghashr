@@ -1,0 +1,52 @@
+# Make the published rstudio-onprem (ghashr) image spawnable by JupyterHub.
+# Does not rebuild R/TeX/Oracle — only adds the Hub single-user layer.
+#
+# The same RUN/COPY/ENV/ENTRYPOINT block belongs in rstudio-onprem-ghashr
+# *before* ENV https_proxy=... so a future rstudio-onprem release works as-is.
+ARG GHASHR_IMAGE=europe-north1-docker.pkg.dev/artifact-registry-5n/itinfra-bakkesyst-docker/rstudio-onprem:0.3.7
+FROM ${GHASHR_IMAGE}
+
+USER root
+
+# Baked SSB proxy breaks pip on a laptop. Clear it for this layer only.
+ENV http_proxy= \
+    https_proxy= \
+    HTTP_PROXY= \
+    HTTPS_PROXY=
+
+# Keep ghashr's R binary; add Hub auth + /rstudio proxy.
+COPY docker/rstudio/rserver.conf /etc/rstudio/rserver.conf
+COPY docker/rstudio/start-singleuser.sh /usr/local/bin/start-singleuser.sh
+COPY docker/rstudio/jupyter_server_config.py /usr/etc/jupyter/jupyter_server_config.py
+
+RUN python3 -m pip install --break-system-packages --no-cache-dir \
+        jupyterhub==5.3.0 \
+        jupyter_server \
+        jupyterlab \
+        jupyter-server-proxy \
+        jupyter-rsession-proxy && \
+    command -v jupyterhub-singleuser && \
+    python3 -c "import jupyterhub; assert jupyterhub.__version__.startswith('5.3')" && \
+    chmod 0755 /usr/local/bin/start-singleuser.sh && \
+    mkdir -p \
+        /tmp/jupyter-runtime \
+        /usr/etc/jupyter/jupyter_server_config.d \
+        /etc/xdg/jupyter/jupyter_server_config.d && \
+    chmod 1777 /tmp/jupyter-runtime && \
+    printf '%s\n' '{"ServerApp":{"jpserver_extensions":{"jupyter_server_proxy":true}}}' \
+      > /usr/etc/jupyter/jupyter_server_config.d/jupyter-server-proxy.json && \
+    cp /usr/etc/jupyter/jupyter_server_config.py /etc/xdg/jupyter/jupyter_server_config.py && \
+    cp /usr/etc/jupyter/jupyter_server_config.d/jupyter-server-proxy.json \
+       /etc/xdg/jupyter/jupyter_server_config.d/jupyter-server-proxy.json
+
+ENV JUPYTER_RUNTIME_DIR=/tmp/jupyter-runtime
+ENV JUPYTER_PLATFORM_DIRS=1
+ENV JUPYTER_RSESSION_PROXY_USE_SOCKET=no
+ENV RSERVER_TIMEOUT=60
+ENV PATH="/usr/local/bin:/usr/lib/rstudio-server/bin:${PATH}"
+
+# Do not run ghashr /start.sh (s6 on :8787). Hub talks to jupyterhub-singleuser on :8888.
+EXPOSE 8888
+WORKDIR /home/rstudio
+ENTRYPOINT ["/usr/local/bin/start-singleuser.sh"]
+CMD ["jupyterhub-singleuser"]

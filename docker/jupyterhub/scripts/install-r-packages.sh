@@ -1,60 +1,100 @@
 echo ">> Installing R packages from CRAN and GitHub"
 Rscript --vanilla - <<'RSCRIPT'
-cran <- Sys.getenv("CRAN", unset = "https://cloud.r-project.org")
-options(repos = c(CRAN = cran))
+r_ver <- Sys.getenv("R_VERSION", unset = as.character(getRversion()))
+r_minor <- sub("^([0-9]+\\.[0-9]+).*", "\\1", r_ver)
+manylinux <- sprintf(
+  "https://packagemanager.posit.co/cran/latest/bin/linux/manylinux_2_28-x86_64/%s",
+  r_minor
+)
+noble <- sprintf(
+  "https://packagemanager.posit.co/cran/latest/bin/linux/noble-x86_64/%s",
+  r_minor
+)
+cran_source <- "https://cloud.r-project.org"
+hard_deps <- c("Depends", "Imports", "LinkingTo")
+repos_try <- c(manylinux, noble, cran_source)
+
+options(HTTPUserAgent = sprintf(
+  "R/%s R (%s)",
+  getRversion(),
+  paste(getRversion(), R.version["platform"], R.version["arch"], R.version["os"])
+))
+options(repos = c(P3M = manylinux, CRAN = noble))
+
+# doBy Imports Deriv. Deriv 4.3.0 needs R >= 4.5 C API; pin 4.2.0 on R 4.4.
+if (getRversion() < "4.5") {
+  if (!requireNamespace("Deriv", quietly = TRUE) ||
+      packageVersion("Deriv") >= "4.3") {
+    message(">> R ", getRversion(), ": installing Deriv 4.2.0 (4.3.0 needs R >= 4.5)")
+    install.packages(
+      "https://cloud.r-project.org/src/contrib/Archive/Deriv/Deriv_4.2.0.tar.gz",
+      repos = NULL,
+      type = "source"
+    )
+  }
+}
 
 message(">> NOTE: This installer runs in LOG-ONLY mode; failures do NOT fail the image build.")
+message(">> R_VERSION: ", r_ver, " → path: ", r_minor)
 
-# Helper: install a CRAN package and capture success/failure
-ip <- function(pkg, deps = TRUE) {
-  tryCatch(
-    {
-      install.packages(pkg, repos = cran, dependencies = deps)
-      list(ok = TRUE, msg = "")
-    },
-    error = function(e) list(ok = FALSE, msg = conditionMessage(e))
-  )
+# Helper: try manylinux → noble → CRAN source; capture success/failure
+ip <- function(pkg, deps = hard_deps) {
+  last_msg <- ""
+  for (repo in repos_try) {
+    res <- tryCatch(
+      {
+        install.packages(pkg, repos = repo, dependencies = deps)
+        list(ok = TRUE, msg = "")
+      },
+      error = function(e) list(ok = FALSE, msg = conditionMessage(e))
+    )
+    if (isTRUE(res$ok) && requireNamespace(pkg, quietly = TRUE)) {
+      return(list(ok = TRUE, msg = ""))
+    }
+    last_msg <- if (nzchar(res$msg)) res$msg else paste("not installed from", repo)
+  }
+  list(ok = FALSE, msg = last_msg)
 }
 
 # ----------------------------
 # 1) Install CRAN packages (explicit list)
 # ----------------------------
 cran_plan <- list(
-  list("tidyfst",            TRUE),
-  list("configr",            TRUE),
-  list("DBI",                TRUE),
-  list("renv",               TRUE),
-  list("leaflet",            TRUE),
-  list("getPass",            TRUE),
-  list("DT",                 TRUE),
-  list("rjwsacruncher",      TRUE),
-  list("sf",                 TRUE),
-  list("sfarrow",            FALSE),
-  list("dbplyr",             FALSE),
-  list("shiny",              FALSE),
-  list("rstudioapi",         TRUE),
-  list("httr",               TRUE),
-  list("readr",              TRUE),
-  list("knitr",              TRUE),
-  list("rmarkdown",          TRUE),
-  list("RCurl",              TRUE),
-  list("here",               TRUE),
-  list("esquisse",           TRUE),
-  list("dcmodify",           TRUE),
-  list("simputation",        TRUE),
-  list("SmallCountRounding", TRUE),
-  list("klassR",             TRUE),
-  list("PxWebApiData",       TRUE),
-  list("gissb",              TRUE),
-  list("igraph",             TRUE),
-  list("dggridR",            TRUE),
-  list("languageserver",     TRUE),
-  list("lintr",              TRUE),
-  list("tidyverse",          TRUE),
-  list("openxlsx",           TRUE),
-  list("survey",             TRUE),
-  list("eurostat",           TRUE),
-  list("easySdcTable",       TRUE)
+  list("tidyfst",            hard_deps),
+  list("configr",            hard_deps),
+  list("DBI",                hard_deps),
+  list("renv",               hard_deps),
+  list("leaflet",            hard_deps),
+  list("getPass",            hard_deps),
+  list("DT",                 hard_deps),
+  list("rjwsacruncher",      hard_deps),
+  list("sf",                 hard_deps),
+  list("sfarrow",            hard_deps),
+  list("dbplyr",             hard_deps),
+  list("shiny",              hard_deps),
+  list("rstudioapi",         hard_deps),
+  list("httr",               hard_deps),
+  list("readr",              hard_deps),
+  list("knitr",              hard_deps),
+  list("rmarkdown",          hard_deps),
+  list("RCurl",              hard_deps),
+  list("here",               hard_deps),
+  list("esquisse",           hard_deps),
+  list("dcmodify",           hard_deps),
+  list("simputation",        hard_deps),
+  list("SmallCountRounding", hard_deps),
+  list("klassR",             hard_deps),
+  list("PxWebApiData",       hard_deps),
+  list("gissb",              hard_deps),
+  list("igraph",             hard_deps),
+  list("dggridR",            hard_deps),
+  list("languageserver",     hard_deps),
+  list("lintr",              hard_deps),
+  list("tidyverse",          hard_deps),
+  list("openxlsx",           hard_deps),
+  list("survey",             hard_deps),
+  list("eurostat",           hard_deps),
+  list("easySdcTable",       hard_deps)
 )
 
 cran_results <- data.frame(
@@ -64,11 +104,11 @@ cran_results <- data.frame(
   stringsAsFactors = FALSE
 )
 
-message(">> Installing CRAN packages")
+message(">> Installing CRAN packages (manylinux → noble → CRAN)")
 for (i in seq_along(cran_plan)) {
   pkg  <- cran_plan[[i]][[1]]
   deps <- cran_plan[[i]][[2]]
-  message(">> [", i, "/", length(cran_plan), "] install.packages('", pkg, "', dependencies = ", deps, ")")
+  message(">> [", i, "/", length(cran_plan), "] install.packages('", pkg, "', hard_deps)")
   flush.console()
   res <- ip(pkg, deps = deps)
   cran_results$ok[i] <- isTRUE(res$ok)
@@ -108,11 +148,10 @@ if (file.exists(local_pkg)) {
 # 3) Ensure 'remotes' present for GitHub installs
 # ----------------------------
 if (!requireNamespace("remotes", quietly = TRUE)) {
-  message(">> Installing 'remotes' from CRAN")
-  # log-only: don't fail if remotes fails
+  message(">> Installing 'remotes'")
   tryCatch(
     {
-      install.packages("remotes", repos = cran)
+      ip("remotes", deps = hard_deps)
       message(">> remotes: OK")
     },
     error = function(e) {
@@ -156,7 +195,6 @@ for (i in seq_along(gh_pkgs)) {
   message(">> [", i, "/", length(gh_pkgs), "] remotes::install_github('", repo, "')")
   flush.console()
 
-  # If 'remotes' is missing, log and skip (do not fail)
   if (!requireNamespace("remotes", quietly = TRUE)) {
     gh_results$ok[i] <- FALSE
     gh_results$message[i] <- "Package 'remotes' is not available; skipping GitHub installs."
@@ -170,7 +208,7 @@ for (i in seq_along(gh_pkgs)) {
     {
       remotes::install_github(
         repo,
-        dependencies = TRUE,
+        dependencies = hard_deps,
         upgrade = "never",
         auth_token = if (nzchar(gh_token)) gh_token else NULL
       )
@@ -193,7 +231,7 @@ for (i in seq_along(gh_pkgs)) {
 message(">> Installing and registering IRkernel")
 try({
   if (!requireNamespace("IRkernel", quietly = TRUE)) {
-    install.packages("IRkernel", repos = cran, dependencies = TRUE)
+    ip("IRkernel", deps = hard_deps)
   }
   IRkernel::installspec(name = "ir", displayname = "R", user = FALSE)
   message(">> IRkernel: OK")

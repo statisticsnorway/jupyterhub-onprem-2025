@@ -1,0 +1,16 @@
+# /usr/local/share/etc/bashrc.felles
+
+# Set LD_LIBRARY_PATH for Oracle (required for ROracle)
+export LD_LIBRARY_PATH=/usr/lib/oracle/21/client64/lib:$LD_LIBRARY_PATH
+
+# Get all variables from stamme_variabel
+source /etc/profile.d/stamme_variabel
+
+# sourcing the default .bashrc from jupyterlab-common
+. /etc/skel/.bashrc
+
+# Calling check-git-config.sh
+CHECK_GIT_CONFIG_FILE=/usr/local/bin/check-git-config.sh
+if [ -f $CHECK_GIT_CONFIG_FILE ]; then
+        $CHECK_GIT_CONFIG_FILE
+fi

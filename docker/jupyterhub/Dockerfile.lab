@@ -115,31 +115,38 @@ RUN apt-get update && \
 # R and Java installation and configuration
 # ------------------------------------------------------------------------------
 
-ARG R_VERSION="4.4.0"
+# R_VERSION comes from CI matrix / --build-arg (4.4.0 or 4.6.0). No Dockerfile default:
+# a missing arg used to silently install 4.4.0 into images tagged r460.
+ARG R_VERSION
+RUN test -n "${R_VERSION}" || { echo "R_VERSION build-arg is required (e.g. 4.4.0 or 4.6.0)"; exit 1; }
 ENV R_VERSION=${R_VERSION}
 ENV R_HOME="/usr/local/lib/R"
 ENV DEFAULT_USER="${USERNAME}"
 
-# Java configuration
-ARG JAVA_VERSION="17"
+# JAVA_VERSION comes from CI matrix / --build-arg (17 for all images for now).
+ARG JAVA_VERSION
+RUN test -n "${JAVA_VERSION}" || { echo "JAVA_VERSION build-arg is required (e.g. 17)"; exit 1; }
 ENV JAVA_VERSION=${JAVA_VERSION}
 ENV JAVA_HOME="/usr/lib/jvm/java-$JAVA_VERSION-openjdk-amd64"
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
 
-# Apache Arrow configuration
-ARG ARROW_VERSION="24.0.0"
+# ARROW_VERSION comes from CI matrix / --build-arg (e.g. 24.0.0).
+ARG ARROW_VERSION
+RUN test -n "${ARROW_VERSION}" || { echo "ARROW_VERSION build-arg is required (e.g. 24.0.0)"; exit 1; }
 ENV ARROW_VERSION=${ARROW_VERSION}
 
-# Use RStudio's package manager to download packages as binaries
-ENV CRAN="https://packagemanager.posit.co/cran/__linux__/noble/latest"
+# CRAN_DISTRO comes from CI matrix (noble on Ubuntu 24.04).
+ARG CRAN_DISTRO
+RUN test -n "${CRAN_DISTRO}" || { echo "CRAN_DISTRO build-arg is required (e.g. noble)"; exit 1; }
+ENV CRAN="https://packagemanager.posit.co/cran/__linux__/${CRAN_DISTRO}/latest"
 
 COPY ./scripts /opt/scripts/
 RUN chmod +x -R /opt/scripts/ && \
     chown -R ${USERNAME}:${GROUPNAME} /opt/scripts/ && \
     chmod -R 700 /opt/scripts/
 
-# Clone and prepare R installation scripts
+# Clone and prepare R installation scripts.
 RUN mkdir -p /rocker_scripts && \
     git clone --branch R${R_VERSION} --depth 1 https://github.com/rocker-org/rocker-versioned2.git /tmp/rocker-versioned2 && \
     cp -r /tmp/rocker-versioned2/scripts/* /rocker_scripts/ && \
@@ -147,8 +154,12 @@ RUN mkdir -p /rocker_scripts && \
     chown -R ${USERNAME}:${GROUPNAME} /rocker_scripts/ && \
     chmod -R 700 /rocker_scripts/
 
-# Install Oracle and R from source and link jwsacruncher
+# Pass the version explicitly so a stale BuildKit/GHA cache cannot install 4.4.0
+# into an image tagged r460. Fail the build if R does not match the ARG.
 RUN /rocker_scripts/install_R_source.sh && \
+    echo "${R_HOME}/lib" > /etc/ld.so.conf.d/R.conf && \
+    ldconfig && \
+    Rscript --vanilla -e 'stopifnot(identical(as.character(getRversion()), Sys.getenv("R_VERSION")))' && \
     /opt/scripts/install-java.sh && \
     /rocker_scripts/setup_R.sh && \
     /opt/scripts/install-system-libs.sh && \
@@ -173,31 +184,20 @@ RUN /opt/scripts/install-r-packages.sh && \
     chown -R ${USERNAME}:${GROUPNAME} ${HOME} ${R_HOME} && \
     rm -f /tmp/ROracle_1.4-1_R_x86_64-unknown-linux-gnu.tar.gz
 
-ENV ARROW_HOME="/usr"
-ENV ARROW_USE_PKG_CONFIG="TRUE"
-ENV LIBARROW_BINARY="FALSE"
-ENV LIBARROW_BUILD="FALSE"
-ENV PKG_CONFIG_PATH="/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig"
-
 # Install jwsacruncher
 COPY ./jwsacruncher-2.2.4.zip /tmp/jwsacruncher-2.2.4.zip
 RUN unzip /tmp/jwsacruncher-2.2.4.zip -d /opt && rm -f /tmp/jwsacruncher-2.2.4.zip
 # Create a symlink at /usr/bin so users can call jwsacruncher from anywhere
 RUN ln -s /opt/jwsacruncher-2.2.4/bin/jwsacruncher /usr/bin/jwsacruncher
 
-RUN sed -i "/^PATH=/c\PATH=$PATH" "$R_HOME/etc/Renviron.site" && \
-    { \
-    echo "ARROW_HOME=${ARROW_HOME}"; \
-    echo "ARROW_USE_PKG_CONFIG=${ARROW_USE_PKG_CONFIG}"; \
-    echo "LIBARROW_BINARY=${LIBARROW_BINARY}"; \
-    echo "LIBARROW_BUILD=${LIBARROW_BUILD}"; \
-    echo "PKG_CONFIG_PATH=${PKG_CONFIG_PATH}"; \
-    } >> "$R_HOME/etc/Renviron.site"
+RUN sed -i "/^PATH=/c\PATH=$PATH" "$R_HOME/etc/Renviron.site"
 
 # ------------------------------------------------------------------------------
 # Python/Conda installation and configuration
 # ------------------------------------------------------------------------------
-ARG PYTHON_VERSION="313"
+# PYTHON_VERSION comes from CI matrix / --build-arg (e.g. 313 for Miniconda py313).
+ARG PYTHON_VERSION
+RUN test -n "${PYTHON_VERSION}" || { echo "PYTHON_VERSION build-arg is required (e.g. 313)"; exit 1; }
 ENV PYTHON_VERSION=${PYTHON_VERSION}
 
 # Set template version for ssb-project-cli

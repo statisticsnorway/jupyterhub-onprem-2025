@@ -1,0 +1,43 @@
+# Local JupyterHub stack for testing spawner profiles.
+# Does not use PAM, SSL, /ssb, SSSD, or statbank-authenticator.
+# Lives outside docker/ so AWX will not deploy these files.
+services:
+  jupyterhub:
+    image: ${DOCKER_HUB_IMAGE}
+    container_name: jupyterhub
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - jupyterhub-data:/data
+      - ../docker/jupyterhub/jupyterhub_config.py:/srv/jupyterhub/jupyterhub_config.py:ro
+      - ../docker/jupyterhub/templates:/srv/jupyterhub/templates:ro
+    environment:
+      JUPYTERHUB_LOCAL_DEV: "true"
+      DUMMY_PASSWORD: ${DUMMY_PASSWORD:-test}
+      DOCKER_PULL_POLICY: ${DOCKER_PULL_POLICY:-never}
+      RSTUDIO_DEFAULT_URL: ${RSTUDIO_DEFAULT_URL:-/rstudio}
+      DOCKER_MEM_LIMIT: ${DOCKER_MEM_LIMIT:-4G}
+      DOCKER_MEM_GUARANTEE: ${DOCKER_MEM_GUARANTEE:-256M}
+      DOCKER_NOTEBOOK_DIR: ${DOCKER_NOTEBOOK_DIR:-/home/jovyan}
+      DOCKER_RSTUDIO_NOTEBOOK_DIR: ${DOCKER_RSTUDIO_NOTEBOOK_DIR:-/home/rstudio/work}
+      DOCKER_NOTEBOOK_IMAGE_R440: ${DOCKER_NOTEBOOK_IMAGE_R440}
+      DOCKER_NOTEBOOK_IMAGE_R460: ${DOCKER_NOTEBOOK_IMAGE_R460}
+      DOCKER_RSTUDIO_IMAGE_R440: ${DOCKER_RSTUDIO_IMAGE_R440}
+      DOCKER_RSTUDIO_IMAGE_R460: ${DOCKER_RSTUDIO_IMAGE_R460}
+      DOCKER_NETWORK_NAME: jupyterhub-network
+      DATA_VOLUME_CONTAINER: /data
+      STATBANK_ENCRYPT_URL: http://localhost/encrypt
+      STATBANK_BASE_URL: ${STATBANK_BASE_URL:-http://localhost/}
+      STATBANK_TEST_BASE_URL: ${STATBANK_TEST_BASE_URL:-http://localhost/}
+      JUPYTERHUB_HTTP_REFERER: ${JUPYTERHUB_HTTP_REFERER:-http://localhost:8000/}
+      DAPLA_ENVIRONMENT: ${DAPLA_ENVIRONMENT:-LOCAL}
+    # Hub image CMD starts jupyterhub; bind HTTP on 8000 via jupyterhub_config.py
+
+volumes:
+  jupyterhub-data:
+
+networks:
+  default:
+    name: jupyterhub-network
