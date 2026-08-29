@@ -1,24 +1,14 @@
-# Setting default repo globally
-default_cran <- "https://nexus.ssb.no/repository/packagemanager-rstudio-noble/"
-legacy_posit_prefixes <- c(
-  "https://packagemanager.posit.co/cran/__linux__/noble",
-  "https://p3m.dev/cran/__linux__/noble"
-)
+# Setting default repo globally (Nexus). Wrapped in local() so nothing
+# leaks into the user's Global Environment.
+local({
+  home <- Sys.getenv("R_HOME")
+  .libPaths(c(file.path(home, "lib"), .libPaths()))
 
-home <- Sys.getenv("R_HOME")
-.libPaths(c(file.path(home, "lib"), .libPaths()))
-
-r_ver <- Sys.getenv("R_VERSION", unset = as.character(getRversion()))
-r_minor <- sub("^([0-9]+\\.[0-9]+).*", "\\1", r_ver)
-
-cran <- Sys.getenv("CRAN", unset = default_cran)
-if (any(startsWith(cran, legacy_posit_prefixes))) {
-  cran <- default_cran
-}
-Sys.setenv(CRAN = cran)
-
-options(repos = c(
-  P3M = sprintf("https://nexus.ssb.no/repository/r-p3m/%s", r_minor),
-  CRAN = cran
-))
-options(renv.config.repos.override = getOption("repos"))
+  r_ver <- Sys.getenv("R_VERSION", unset = as.character(getRversion()))
+  r_minor <- sub("^([0-9]+\\.[0-9]+).*", "\\1", r_ver)
+  options(repos = c(
+    P3M = sprintf("https://nexus.ssb.no/repository/r-p3m/%s", r_minor),
+    CRAN = "https://nexus.ssb.no/repository/packagemanager-rstudio-noble/"
+  ))
+  options(renv.config.repos.override = getOption("repos"))
+})

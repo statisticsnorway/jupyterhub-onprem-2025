@@ -34,6 +34,7 @@ services:
       DOCKER_NOTEBOOK_IMAGE_R460: ${DOCKER_NOTEBOOK_IMAGE_R460}
       DOCKER_RSTUDIO_IMAGE_R440: ${DOCKER_RSTUDIO_IMAGE_R440}
       DOCKER_RSTUDIO_IMAGE_R460: ${DOCKER_RSTUDIO_IMAGE_R460}
+      DOCKER_RSTUDIO_MEM_LIMIT: ${DOCKER_RSTUDIO_MEM_LIMIT:-50G}
       # Define the internal network name
       DOCKER_NETWORK_NAME: jupyterhub-network
       # Using this run command (optional)
