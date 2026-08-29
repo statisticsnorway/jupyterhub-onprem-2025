@@ -310,7 +310,7 @@ jobs:
     secrets: inherit
     with:
       matrix: ${{ needs.detect-images.outputs.matrix }}
-      image_tag: ${{ env.TAG }}
+      image_tag: ${{ github.ref_name }}-${{ github.sha }}
 
   deploy_staging:
     needs: [build, smoke]
