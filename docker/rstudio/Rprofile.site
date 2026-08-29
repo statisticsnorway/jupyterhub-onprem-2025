@@ -4,10 +4,10 @@ home <- Sys.getenv("R_HOME")
 
 r_ver <- Sys.getenv("R_VERSION", unset = as.character(getRversion()))
 r_minor <- sub("^([0-9]+\\.[0-9]+).*", "\\1", r_ver)
-default_cran <- "https://nexus.ssb.no/repository/packagemanager-rstudio-resolute/"
+default_cran <- "https://nexus.ssb.no/repository/packagemanager-rstudio-noble/"
 legacy_posit_prefixes <- c(
-  "https://packagemanager.posit.co/cran/__linux__/resolute",
-  "https://p3m.dev/cran/__linux__/resolute"
+  "https://packagemanager.posit.co/cran/__linux__/noble",
+  "https://p3m.dev/cran/__linux__/noble"
 )
 
 cran <- Sys.getenv("CRAN", unset = default_cran)

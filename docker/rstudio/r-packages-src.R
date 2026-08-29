@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 
-# Build-time install: manylinux portable first, resolute binaries as fallback, CRAN last.
+# Build-time install: manylinux portable first, noble binaries as fallback, CRAN last.
 # (GHA cannot rely on Nexus; runtime Rprofile.site points at Nexus mirrors.)
 #
 # P3M manylinux URL must use major.minor (4.4), not patch (4.4.0).
@@ -13,8 +13,8 @@ manylinux <- sprintf(
   "https://packagemanager.posit.co/cran/latest/bin/linux/manylinux_2_28-x86_64/%s",
   r_minor
 )
-resolute <- sprintf(
-  "https://packagemanager.posit.co/cran/latest/bin/linux/resolute-x86_64/%s",
+noble <- sprintf(
+  "https://packagemanager.posit.co/cran/latest/bin/linux/noble-x86_64/%s",
   r_minor
 )
 cran <- "https://cloud.r-project.org"
@@ -28,7 +28,7 @@ options(HTTPUserAgent = sprintf(
 ))
 
 .libPaths(unique(c("/usr/local/lib/R/site-library", .libPaths())))
-options(repos = c(P3M = manylinux, CRAN = resolute))
+options(repos = c(P3M = manylinux, CRAN = noble))
 
 message("R_VERSION: ", r_ver, " → path: ", r_minor)
 message("Repos: ", paste(getOption("repos"), collapse = ", "))
@@ -63,10 +63,10 @@ install_set <- function(p, repos) {
 # 1) Manylinux portable binaries
 still_missing <- install_set(pkgs, repos = manylinux)
 
-# 2) Resolute binaries for anything still missing
+# 2) Noble binaries for anything still missing
 if (length(still_missing)) {
-  message("Resolute fallback for: ", paste(still_missing, collapse = ", "))
-  still_missing <- install_set(still_missing, repos = resolute)
+  message("Noble fallback for: ", paste(still_missing, collapse = ", "))
+  still_missing <- install_set(still_missing, repos = noble)
 }
 
 # 3) CRAN source last resort
@@ -87,7 +87,7 @@ message("simputation installed OK: ", as.character(packageVersion("simputation")
 still_missing <- setdiff(pkgs, rownames(installed.packages()))
 if (length(still_missing)) {
   stop(
-    "Packages still missing after manylinux/resolute/CRAN: ",
+    "Packages still missing after manylinux/noble/CRAN: ",
     paste(still_missing, collapse = ", ")
   )
 }

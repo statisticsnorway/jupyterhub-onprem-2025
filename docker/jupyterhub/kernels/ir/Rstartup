@@ -1,8 +1,8 @@
 .First <- function() {
-  default_cran <- "https://nexus.ssb.no/repository/packagemanager-rstudio-resolute/"
+  default_cran <- "https://nexus.ssb.no/repository/packagemanager-rstudio-noble/"
   legacy_posit_prefixes <- c(
-    "https://packagemanager.posit.co/cran/__linux__/resolute",
-    "https://p3m.dev/cran/__linux__/resolute"
+    "https://packagemanager.posit.co/cran/__linux__/noble",
+    "https://p3m.dev/cran/__linux__/noble"
   )
 
   home <- Sys.getenv("R_HOME")

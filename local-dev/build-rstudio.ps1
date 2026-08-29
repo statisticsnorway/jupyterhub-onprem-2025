@@ -2,16 +2,21 @@
 # This takes a long time (R from source, TeX, Oracle, ...).
 param(
     [string]$RVersion = "4.4.0",
-    [string]$Tag = "onprem-rstudio-r440:local"
+    [string]$Tag = "onprem-rstudio-r440:local",
+    [string]$JavaVersion = "17",
+    [string]$CranDistro = "noble"
 )
 
 $ErrorActionPreference = "Stop"
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $RepoRoot
 
-Write-Host "Building $Tag with R_VERSION=$RVersion ..."
+Write-Host "Building $Tag with R_VERSION=$RVersion JAVA_VERSION=$JavaVersion CRAN_DISTRO=$CranDistro ..."
 docker build `
     --build-arg R_VERSION=$RVersion `
+    --build-arg JAVA_VERSION=$JavaVersion `
+    --build-arg CRAN_DISTRO=$CranDistro `
+    --build-arg ARROW_VERSION=24.0.0 `
     -t $Tag `
     -f docker/rstudio/Dockerfile `
     docker/rstudio

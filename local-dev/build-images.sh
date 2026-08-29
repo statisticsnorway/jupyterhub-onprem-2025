@@ -18,6 +18,8 @@ cd "$REPO_ROOT"
 
 PYTHON_VERSION="313"
 ARROW_VERSION="24.0.0"
+JAVA_VERSION="17"
+CRAN_DISTRO="noble"
 
 repo_build() {
   local tag="$1" file="$2" context="$3"
@@ -39,13 +41,17 @@ if [[ "$ONLY" == "all" || "$ONLY" == "lab" ]]; then
     docker/jupyterhub \
     --build-arg R_VERSION=4.4.0 \
     --build-arg PYTHON_VERSION="$PYTHON_VERSION" \
-    --build-arg ARROW_VERSION="$ARROW_VERSION"
+    --build-arg ARROW_VERSION="$ARROW_VERSION" \
+    --build-arg JAVA_VERSION="$JAVA_VERSION" \
+    --build-arg CRAN_DISTRO="$CRAN_DISTRO"
   repo_build onprem-jupyterlab-r460:local \
     docker/jupyterhub/Dockerfile.lab \
     docker/jupyterhub \
     --build-arg R_VERSION=4.6.0 \
     --build-arg PYTHON_VERSION="$PYTHON_VERSION" \
-    --build-arg ARROW_VERSION="$ARROW_VERSION"
+    --build-arg ARROW_VERSION="$ARROW_VERSION" \
+    --build-arg JAVA_VERSION="$JAVA_VERSION" \
+    --build-arg CRAN_DISTRO="$CRAN_DISTRO"
 fi
 
 if [[ "$ONLY" == "all" || "$ONLY" == "rstudio" ]]; then
@@ -53,12 +59,16 @@ if [[ "$ONLY" == "all" || "$ONLY" == "rstudio" ]]; then
     docker/rstudio/Dockerfile \
     docker/rstudio \
     --build-arg R_VERSION=4.4.0 \
-    --build-arg ARROW_VERSION="$ARROW_VERSION"
+    --build-arg ARROW_VERSION="$ARROW_VERSION" \
+    --build-arg JAVA_VERSION="$JAVA_VERSION" \
+    --build-arg CRAN_DISTRO="$CRAN_DISTRO"
   repo_build onprem-rstudio-r460:local \
     docker/rstudio/Dockerfile \
     docker/rstudio \
     --build-arg R_VERSION=4.6.0 \
-    --build-arg ARROW_VERSION="$ARROW_VERSION"
+    --build-arg ARROW_VERSION="$ARROW_VERSION" \
+    --build-arg JAVA_VERSION="$JAVA_VERSION" \
+    --build-arg CRAN_DISTRO="$CRAN_DISTRO"
 fi
 
 echo

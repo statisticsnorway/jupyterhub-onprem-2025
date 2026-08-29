@@ -1,4 +1,4 @@
-FROM docker.io/library/ubuntu:26.04
+FROM docker.io/library/ubuntu:24.04
 
 # Spawned by JupyterHub (jupyter-rsession-proxy), not as a standalone RStudio compose stack.
 # CI builds this image twice: R_VERSION=4.4.0 and R_VERSION=4.6.0.
@@ -75,9 +75,9 @@ ENV R_VERSION=${R_VERSION}
 ENV R_HOME="/usr/local/lib/R"
 ENV DEFAULT_USER="${USERNAME}"
 
-# JAVA_VERSION comes from CI matrix / --build-arg (17 for R 4.4, 21 for R 4.6).
+# JAVA_VERSION comes from CI matrix / --build-arg (17 for all images for now).
 ARG JAVA_VERSION
-RUN test -n "${JAVA_VERSION}" || { echo "JAVA_VERSION build-arg is required (e.g. 17 or 21)"; exit 1; }
+RUN test -n "${JAVA_VERSION}" || { echo "JAVA_VERSION build-arg is required (e.g. 17)"; exit 1; }
 ENV JAVA_VERSION=${JAVA_VERSION}
 ENV JAVA_HOME="/usr/lib/jvm/java-$JAVA_VERSION-openjdk-amd64"
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
@@ -87,22 +87,18 @@ USER root
 RUN apt-get upgrade --fix-missing -y
 
 # Install R using rocker's install scripts for the selected R_VERSION.
-# rocker-versioned2 does not know Ubuntu 26.04 (resolute) yet: hdf4 package
-# rename + treat resolute like noble when fetching the RStudio deb (dapla PR #444).
 RUN git clone --branch R${R_VERSION} --depth 1 https://github.com/rocker-org/rocker-versioned2.git /tmp/rocker-versioned2 && \
     cp -r /tmp/rocker-versioned2/scripts/ /rocker_scripts/ && \
     chown -R ${USERNAME}:${GROUPNAME} /rocker_scripts/ && \
     chmod -R 700 /rocker_scripts/ && \
-    sed -i 's/libhdf4-alt-dev/libhdf4-dev/g' /rocker_scripts/install_geospatial.sh && \
-    sed -i 's/\[ "$UBUNTU_CODENAME" = "noble" \]/[ "$UBUNTU_CODENAME" = "noble" ] || [ "$UBUNTU_CODENAME" = "resolute" ]/' /rocker_scripts/install_rstudio.sh && \
     /rocker_scripts/install_R_source.sh && \
     echo "${R_HOME}/lib" > /etc/ld.so.conf.d/R.conf && \
     ldconfig && \
     Rscript --vanilla -e 'stopifnot(identical(as.character(getRversion()), Sys.getenv("R_VERSION")))'
 
-# CRAN_DISTRO comes from CI matrix (resolute on Ubuntu 26.04).
+# CRAN_DISTRO comes from CI matrix (noble on Ubuntu 24.04).
 ARG CRAN_DISTRO
-RUN test -n "${CRAN_DISTRO}" || { echo "CRAN_DISTRO build-arg is required (e.g. resolute)"; exit 1; }
+RUN test -n "${CRAN_DISTRO}" || { echo "CRAN_DISTRO build-arg is required (e.g. noble)"; exit 1; }
 ENV CRAN="https://packagemanager.posit.co/cran/__linux__/${CRAN_DISTRO}/latest"
 
 # RStudio ENVs

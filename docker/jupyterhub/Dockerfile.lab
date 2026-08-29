@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=ubuntu:26.04
+ARG BASE_IMAGE=ubuntu:24.04
 FROM ${BASE_IMAGE}
 
 LABEL maintainer="Statistics Norway"
@@ -123,9 +123,9 @@ ENV R_VERSION=${R_VERSION}
 ENV R_HOME="/usr/local/lib/R"
 ENV DEFAULT_USER="${USERNAME}"
 
-# JAVA_VERSION comes from CI matrix / --build-arg (17 for R 4.4, 21 for R 4.6).
+# JAVA_VERSION comes from CI matrix / --build-arg (17 for all images for now).
 ARG JAVA_VERSION
-RUN test -n "${JAVA_VERSION}" || { echo "JAVA_VERSION build-arg is required (e.g. 17 or 21)"; exit 1; }
+RUN test -n "${JAVA_VERSION}" || { echo "JAVA_VERSION build-arg is required (e.g. 17)"; exit 1; }
 ENV JAVA_VERSION=${JAVA_VERSION}
 ENV JAVA_HOME="/usr/lib/jvm/java-$JAVA_VERSION-openjdk-amd64"
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
@@ -136,9 +136,9 @@ ARG ARROW_VERSION
 RUN test -n "${ARROW_VERSION}" || { echo "ARROW_VERSION build-arg is required (e.g. 24.0.0)"; exit 1; }
 ENV ARROW_VERSION=${ARROW_VERSION}
 
-# CRAN_DISTRO comes from CI matrix (resolute on Ubuntu 26.04).
+# CRAN_DISTRO comes from CI matrix (noble on Ubuntu 24.04).
 ARG CRAN_DISTRO
-RUN test -n "${CRAN_DISTRO}" || { echo "CRAN_DISTRO build-arg is required (e.g. resolute)"; exit 1; }
+RUN test -n "${CRAN_DISTRO}" || { echo "CRAN_DISTRO build-arg is required (e.g. noble)"; exit 1; }
 ENV CRAN="https://packagemanager.posit.co/cran/__linux__/${CRAN_DISTRO}/latest"
 
 COPY ./scripts /opt/scripts/
@@ -147,14 +147,12 @@ RUN chmod +x -R /opt/scripts/ && \
     chmod -R 700 /opt/scripts/
 
 # Clone and prepare R installation scripts.
-# rocker-versioned2 does not know Ubuntu 26.04 (resolute) yet (dapla PR #444).
 RUN mkdir -p /rocker_scripts && \
     git clone --branch R${R_VERSION} --depth 1 https://github.com/rocker-org/rocker-versioned2.git /tmp/rocker-versioned2 && \
     cp -r /tmp/rocker-versioned2/scripts/* /rocker_scripts/ && \
     rm -rf /tmp/rocker-versioned2 && \
     chown -R ${USERNAME}:${GROUPNAME} /rocker_scripts/ && \
-    chmod -R 700 /rocker_scripts/ && \
-    sed -i 's/libhdf4-alt-dev/libhdf4-dev/g' /rocker_scripts/install_geospatial.sh
+    chmod -R 700 /rocker_scripts/
 
 # Pass the version explicitly so a stale BuildKit/GHA cache cannot install 4.4.0
 # into an image tagged r460. Fail the build if R does not match the ARG.
@@ -436,7 +434,7 @@ RUN git config --system --add safe.directory '*'
 
 # Set the runtime CRAN repository. Docker ENV persists in the final image;
 # RUN unset CRAN would only affect one build shell.
-ENV CRAN=https://nexus.ssb.no/repository/packagemanager-rstudio-resolute/
+ENV CRAN=https://nexus.ssb.no/repository/packagemanager-rstudio-noble/
 
 # Create a symlink to the stamme_variabel file
 RUN ln -s /ssb/share/etc/stamme_variabel /etc/profile.d/stamme_variabel

@@ -11,6 +11,8 @@ Set-Location $RepoRoot
 
 $PythonVersion = "313"
 $ArrowVersion = "24.0.0"
+$JavaVersion = "17"
+$CranDistro = "noble"
 $BuildAll = $Only -contains "all"
 
 function Invoke-RepoBuild {
@@ -20,7 +22,9 @@ function Invoke-RepoBuild {
         [Parameter(Mandatory = $true)][string]$Context,
         [string]$RVersion = "",
         [string]$PyVersion = "",
-        [string]$Arrow = ""
+        [string]$Arrow = "",
+        [string]$Java = "",
+        [string]$Cran = ""
     )
 
     Write-Host ""
@@ -29,6 +33,8 @@ function Invoke-RepoBuild {
     if ($RVersion) { $args += @("--build-arg", "R_VERSION=$RVersion") }
     if ($PyVersion) { $args += @("--build-arg", "PYTHON_VERSION=$PyVersion") }
     if ($Arrow) { $args += @("--build-arg", "ARROW_VERSION=$Arrow") }
+    if ($Java) { $args += @("--build-arg", "JAVA_VERSION=$Java") }
+    if ($Cran) { $args += @("--build-arg", "CRAN_DISTRO=$Cran") }
     $args += $Context
 
     docker @args
@@ -45,22 +51,22 @@ if ($BuildAll -or ($Only -contains "lab")) {
     Invoke-RepoBuild -Tag "onprem-jupyterlab-r440:local" `
         -File "docker/jupyterhub/Dockerfile.lab" `
         -Context "docker/jupyterhub" `
-        -RVersion "4.4.0" -PyVersion $PythonVersion -Arrow $ArrowVersion
+        -RVersion "4.4.0" -PyVersion $PythonVersion -Arrow $ArrowVersion -Java $JavaVersion -Cran $CranDistro
     Invoke-RepoBuild -Tag "onprem-jupyterlab-r460:local" `
         -File "docker/jupyterhub/Dockerfile.lab" `
         -Context "docker/jupyterhub" `
-        -RVersion "4.6.0" -PyVersion $PythonVersion -Arrow $ArrowVersion
+        -RVersion "4.6.0" -PyVersion $PythonVersion -Arrow $ArrowVersion -Java $JavaVersion -Cran $CranDistro
 }
 
 if ($BuildAll -or ($Only -contains "rstudio")) {
     Invoke-RepoBuild -Tag "onprem-rstudio-r440:local" `
         -File "docker/rstudio/Dockerfile" `
         -Context "docker/rstudio" `
-        -RVersion "4.4.0" -Arrow $ArrowVersion
+        -RVersion "4.4.0" -Arrow $ArrowVersion -Java $JavaVersion -Cran $CranDistro
     Invoke-RepoBuild -Tag "onprem-rstudio-r460:local" `
         -File "docker/rstudio/Dockerfile" `
         -Context "docker/rstudio" `
-        -RVersion "4.6.0" -Arrow $ArrowVersion
+        -RVersion "4.6.0" -Arrow $ArrowVersion -Java $JavaVersion -Cran $CranDistro
 }
 
 Write-Host ""

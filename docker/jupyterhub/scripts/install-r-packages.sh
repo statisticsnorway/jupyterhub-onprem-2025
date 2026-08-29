@@ -6,25 +6,25 @@ manylinux <- sprintf(
   "https://packagemanager.posit.co/cran/latest/bin/linux/manylinux_2_28-x86_64/%s",
   r_minor
 )
-resolute <- sprintf(
-  "https://packagemanager.posit.co/cran/latest/bin/linux/resolute-x86_64/%s",
+noble <- sprintf(
+  "https://packagemanager.posit.co/cran/latest/bin/linux/noble-x86_64/%s",
   r_minor
 )
 cran_source <- "https://cloud.r-project.org"
 hard_deps <- c("Depends", "Imports", "LinkingTo")
-repos_try <- c(manylinux, resolute, cran_source)
+repos_try <- c(manylinux, noble, cran_source)
 
 options(HTTPUserAgent = sprintf(
   "R/%s R (%s)",
   getRversion(),
   paste(getRversion(), R.version["platform"], R.version["arch"], R.version["os"])
 ))
-options(repos = c(P3M = manylinux, CRAN = resolute))
+options(repos = c(P3M = manylinux, CRAN = noble))
 
 message(">> NOTE: This installer runs in LOG-ONLY mode; failures do NOT fail the image build.")
 message(">> R_VERSION: ", r_ver, " → path: ", r_minor)
 
-# Helper: try manylinux → resolute → CRAN source; capture success/failure
+# Helper: try manylinux → noble → CRAN source; capture success/failure
 ip <- function(pkg, deps = hard_deps) {
   last_msg <- ""
   for (repo in repos_try) {
@@ -91,7 +91,7 @@ cran_results <- data.frame(
   stringsAsFactors = FALSE
 )
 
-message(">> Installing CRAN packages (manylinux → resolute → CRAN)")
+message(">> Installing CRAN packages (manylinux → noble → CRAN)")
 for (i in seq_along(cran_plan)) {
   pkg  <- cran_plan[[i]][[1]]
   deps <- cran_plan[[i]][[2]]

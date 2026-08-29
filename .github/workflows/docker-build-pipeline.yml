@@ -90,7 +90,7 @@ jobs:
                   "python_version": "313",
                   "arrow_version": "24.0.0",
                   "java_version": "17",
-                  "cran_distro": "resolute",
+                  "cran_distro": "noble",
               },
               {
                   "image_name": "onprem-jupyterlab-r460",
@@ -99,8 +99,8 @@ jobs:
                   "r_version": "4.6.0",
                   "python_version": "313",
                   "arrow_version": "24.0.0",
-                  "java_version": "21",
-                  "cran_distro": "resolute",
+                  "java_version": "17",
+                  "cran_distro": "noble",
               },
           ]
           # RStudio requires R_VERSION, ARROW_VERSION, JAVA_VERSION, CRAN_DISTRO.
@@ -113,7 +113,7 @@ jobs:
                   "python_version": "",
                   "arrow_version": "24.0.0",
                   "java_version": "17",
-                  "cran_distro": "resolute",
+                  "cran_distro": "noble",
               },
               {
                   "image_name": "onprem-rstudio-r460",
@@ -122,8 +122,8 @@ jobs:
                   "r_version": "4.6.0",
                   "python_version": "",
                   "arrow_version": "24.0.0",
-                  "java_version": "21",
-                  "cran_distro": "resolute",
+                  "java_version": "17",
+                  "cran_distro": "noble",
               },
           ]
 
