@@ -336,6 +336,10 @@ ENV PATH="/usr/local/bin:/usr/lib/rstudio-server/bin:${PATH}"
 
 RUN git config --system --add safe.directory '*'
 
+# Set the runtime CRAN repository. Docker ENV persists in the final image;
+# build-time CRAN above stays Posit for Rocker setup_R.sh.
+ENV CRAN=https://nexus.ssb.no/repository/packagemanager-rstudio-noble/
+
 # Use proxy for https connections, this must happen last
 ENV https_proxy=http://proxy.ssb.no:3128
 ENV no_proxy=nexus.ssb.no,git-adm.ssb.no,i.test.ssb.no,i.ssb.no,data.ssb.no,github.com,api.github.com,codeload.github.com,www.ssb.no

@@ -120,6 +120,14 @@ def _apply_image_defaults(spawner):
     if image:
         spawner.image = image
 
+    if name == _RSTUDIO_SERVER_NAME:
+        rstudio_mem_default = (
+            os.environ.get("DOCKER_MEM_LIMIT", "2G") if LOCAL_DEV else "50G"
+        )
+        spawner.mem_limit = os.environ.get(
+            "DOCKER_RSTUDIO_MEM_LIMIT", rstudio_mem_default
+        )
+
     rstudio_url = os.environ.get("RSTUDIO_DEFAULT_URL", "/rstudio")
     if image in _rstudio_images:
         spawner.default_url = rstudio_url
