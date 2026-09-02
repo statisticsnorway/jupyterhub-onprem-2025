@@ -102,6 +102,21 @@ def _resolve_selected_image(spawner, user_options=None):
     return image
 
 
+def _r_label(image):
+    if image in {_lab_r460, _rstudio_r460}:
+        return "r460"
+    return "r440"
+
+
+def _set_container_name(spawner):
+    # {raw_username} keeps hyphens (admin-paf). Do not use {servername} (--rstudio).
+    rver = _r_label(getattr(spawner, "image", "") or "")
+    if _spawner_name(spawner) == _RSTUDIO_SERVER_NAME:
+        spawner.name_template = f"rstudio-{rver}-{{raw_username}}"
+    else:
+        spawner.name_template = f"jupyter-{rver}-{{raw_username}}"
+
+
 def _apply_image_defaults(spawner):
     # DockerSpawner.start() applies user_options.image *after* this hook.
     # Resolve it here so RStudio gets /rstudio and a directory that exists.
@@ -153,6 +168,8 @@ def _apply_image_defaults(spawner):
         if LOCAL_DEV:
             spawner.notebook_dir = os.environ.get("DOCKER_NOTEBOOK_DIR", "/home/jovyan")
 
+    _set_container_name(spawner)
+
 
 c.DockerSpawner.pre_spawn_hook = _apply_image_defaults
 
@@ -166,6 +183,7 @@ def _apply_user_options(spawner, user_options):
     if isinstance(allowed, dict) and image not in allowed and image not in allowed.values():
         raise ValueError(f"Image not allowed: {image}")
     spawner.image = image
+    _set_container_name(spawner)
 
 
 c.Spawner.apply_user_options = _apply_user_options
