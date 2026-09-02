@@ -295,12 +295,8 @@ RUN apt-get update && \
 
 ENV PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/texlive/bin/linux:/usr/lib/rstudio-server/bin:/usr/lib/rstudio-server/bin/quarto/bin:/usr/lib/rstudio-server/bin/postback:/usr/local/texlive/bin/x86_64-linux:${PATH}"
 
-# Install the LaTeX packages you need
-RUN set -eux; \
-    /usr/local/texlive/bin/x86_64-linux/tlmgr option repository "$CTAN_REPO"; \
-    # /usr/local/texlive/bin/x86_64-linux/tlmgr update --self; \
-    /usr/local/texlive/bin/x86_64-linux/tlmgr install amsfonts booktabs; \
-    # optional: clean up TL backup cache to keep the layer smaller
+# Same TeX packages as Lab (docker/jupyterhub/scripts/install-texlive-packages.sh)
+RUN /opt/install-texlive-packages.sh && \
     rm -rf /usr/local/texlive/*/tlpkg/backups
 
 RUN locale-gen nb_NO.UTF-8 && update-locale LANG=nb_NO.UTF-8 LC_ALL=nb_NO.UTF-8
