@@ -1,10 +1,7 @@
-import { JupyterFrontEnd, JupyterFrontEndPlugin } from '@jupyterlab/application';
-
-const plugin: JupyterFrontEndPlugin<void> = {
+const plugin = {
   id: 'hub-control-panel-same-tab:plugin',
   autoStart: true,
-  activate: (app: JupyterFrontEnd) => {
-    // Finn hubPrefix fra DOM-konfig
+  activate: () => {
     let hubPrefix = '/hub/';
     const el = document.getElementById('jupyter-config-data');
     if (el) {
@@ -18,7 +15,6 @@ const plugin: JupyterFrontEndPlugin<void> = {
       }
     }
 
-    // Monkey-patch window.open for å åpne Hub i samme fane
     const guard = '__hubSameTabPatched__';
     const w = window as unknown as Record<string, unknown>;
     if (!w[guard]) {
@@ -29,7 +25,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
           window.location.assign(s);
           return null;
         }
-        return originalOpen(url as any, target, features);
+        return originalOpen(url as string | URL | undefined, target, features);
       }) as typeof window.open;
       w[guard] = true;
     }
@@ -37,5 +33,3 @@ const plugin: JupyterFrontEndPlugin<void> = {
 };
 
 export default plugin;
-
-

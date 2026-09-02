@@ -42,7 +42,7 @@ else:
 c.DockerSpawner.http_timeout = 120
 c.Spawner.start_timeout = 120
 
-# JupyterHub 5.3 / DockerSpawner 14 have no profile_list (that is KubeSpawner).
+# JupyterHub / DockerSpawner have no profile_list (that is KubeSpawner).
 # allowed_images with more than one entry renders the spawn form.
 _lab_r440 = os.environ["DOCKER_NOTEBOOK_IMAGE_R440"]
 _lab_r460 = os.environ["DOCKER_NOTEBOOK_IMAGE_R460"]
@@ -102,6 +102,21 @@ def _resolve_selected_image(spawner, user_options=None):
     return image
 
 
+def _r_label(image):
+    if image in {_lab_r460, _rstudio_r460}:
+        return "r460"
+    return "r440"
+
+
+def _set_container_name(spawner):
+    # {raw_username} keeps hyphens (admin-paf). Do not use {servername} (--rstudio).
+    rver = _r_label(getattr(spawner, "image", "") or "")
+    if _spawner_name(spawner) == _RSTUDIO_SERVER_NAME:
+        spawner.name_template = f"rstudio-{rver}-{{raw_username}}"
+    else:
+        spawner.name_template = f"jupyter-{rver}-{{raw_username}}"
+
+
 def _apply_image_defaults(spawner):
     # DockerSpawner.start() applies user_options.image *after* this hook.
     # Resolve it here so RStudio gets /rstudio and a directory that exists.
@@ -153,12 +168,14 @@ def _apply_image_defaults(spawner):
         if LOCAL_DEV:
             spawner.notebook_dir = os.environ.get("DOCKER_NOTEBOOK_DIR", "/home/jovyan")
 
+    _set_container_name(spawner)
+
 
 c.DockerSpawner.pre_spawn_hook = _apply_image_defaults
 
 
 def _apply_user_options(spawner, user_options):
-    """JupyterHub 5.3 does not apply form values unless this hook is set."""
+    """JupyterHub does not apply form values unless this hook is set."""
     image = _resolve_selected_image(spawner, user_options)
     if not image:
         return
@@ -166,6 +183,7 @@ def _apply_user_options(spawner, user_options):
     if isinstance(allowed, dict) and image not in allowed and image not in allowed.values():
         raise ValueError(f"Image not allowed: {image}")
     spawner.image = image
+    _set_container_name(spawner)
 
 
 c.Spawner.apply_user_options = _apply_user_options
@@ -236,7 +254,7 @@ c.DockerSpawner.debug = True
 # Prometheus
 c.JupyterHub.authenticate_prometheus = False
 
-# Jupyterhub idle-culler-service
+# JupyterHub idle-culler (RBAC scopes; admin: True is JupyterHub < 2)
 c.JupyterHub.services = [
     {
         "name": "jupyterhub-idle-culler-service",
@@ -246,7 +264,18 @@ c.JupyterHub.services = [
             "jupyterhub_idle_culler",
             "--timeout=3600",
         ],
-        "admin": True,
+    }
+]
+c.JupyterHub.load_roles = [
+    {
+        "name": "jupyterhub-idle-culler",
+        "description": "Cull idle servers",
+        "scopes": [
+            "list:users",
+            "read:users:activity",
+            "admin:servers",
+        ],
+        "services": ["jupyterhub-idle-culler-service"],
     }
 ]
 
@@ -271,15 +300,19 @@ c.JupyterHub.redirect_to_server = False
 c.JupyterHub.default_url = "/hub/home"
 c.JupyterHub.template_paths = ["/srv/jupyterhub/templates"]
 
-# Skip OAuth consent screen for single-user servers
-c.JupyterHub.oauth_no_confirm = True
+# Skip OAuth consent screen for single-user servers (removed in JupyterHub 6).
+from jupyterhub.app import JupyterHub as _JupyterHubApp
+
+if "oauth_no_confirm" in _JupyterHubApp.class_traits():
+    c.JupyterHub.oauth_no_confirm = True
 # ---------------------------
-# Disable browser caching for Hub pages/assets
-c.JupyterHub.extra_headers = {
-    "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
-    "Pragma": "no-cache",
-    "Expires": "0",
-}
+# Disable browser caching for Hub pages/assets (removed in JupyterHub 6).
+if "extra_headers" in _JupyterHubApp.class_traits():
+    c.JupyterHub.extra_headers = {
+        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+        "Pragma": "no-cache",
+        "Expires": "0",
+    }
 # Also prevent long-lived caching of Hub static files
 c.JupyterHub.tornado_settings = {"static_cache_max_age": 0}
 # ---------------------------

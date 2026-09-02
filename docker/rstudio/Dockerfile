@@ -316,13 +316,13 @@ COPY start-singleuser.sh /usr/local/bin/start-singleuser.sh
 COPY jupyter_server_config.py /usr/etc/jupyter/jupyter_server_config.py
 
 RUN python3 -m pip install --break-system-packages --no-cache-dir \
-        jupyterhub==5.3.0 \
+        jupyterhub==6.0.0 \
         jupyter_server \
         jupyterlab \
         jupyter-server-proxy \
         jupyter-rsession-proxy && \
     command -v jupyterhub-singleuser && \
-    python3 -c "import jupyterhub; assert jupyterhub.__version__.startswith('5.3')" && \
+    python3 -c "import jupyterhub; assert jupyterhub.__version__.startswith('6.0')" && \
     chmod 0755 /usr/local/bin/start-singleuser.sh && \
     mkdir -p \
         /tmp/jupyter-runtime \
