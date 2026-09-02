@@ -47,6 +47,16 @@ RUN chmod -R +x /opt/ && \
     # Clean up
     rm -rf /var/lib/apt/lists/*
 
+# SSSD users (not only rstudio) must refresh the CA store at spawn
+RUN install -d -m 0750 /etc/sudoers.d && \
+    cat <<'EOF' > /etc/sudoers.d/update-ca-certificates && \
+    chmod 0440 /etc/sudoers.d/update-ca-certificates
+Cmnd_Alias CA_UPDATE=/usr/sbin/update-ca-certificates
+Cmnd_Alias CA_INSTALL=/usr/bin/install
+Cmnd_Alias CA_MKDIR=/usr/bin/mkdir
+ALL ALL=(root) NOPASSWD: CA_UPDATE, CA_INSTALL, CA_MKDIR
+EOF
+
 ENV PATH="${PATH}:${HOME}/.local/bin:${HOME}/.krew/bin:${HOME}/work/.local/pipx/bin"
 
 # Download git completion and git prompt scripts (sjekke om dete er nødvendig mtp at vi kopierer inn bashrc fra L219)
@@ -265,7 +275,8 @@ ENV DAPLA_REGION=ON_PREM
 COPY start.sh /start.sh
 RUN chmod +x /start.sh && \
     mkdir -p /usr/local/bin/before-notebook.d && \
-    cp /start.sh /usr/local/bin/before-notebook.d/00-rstudio-env.sh
+    cp /start.sh /usr/local/bin/before-notebook.d/00-rstudio-env.sh && \
+    cp /opt/update-certificate.sh /usr/local/bin/before-notebook.d/05-update-certificate.sh
 
 
 # Install Oracle client libraries for ROracle
