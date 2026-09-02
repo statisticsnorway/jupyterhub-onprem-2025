@@ -42,7 +42,7 @@ else:
 c.DockerSpawner.http_timeout = 120
 c.Spawner.start_timeout = 120
 
-# JupyterHub 5.3 / DockerSpawner 14 have no profile_list (that is KubeSpawner).
+# JupyterHub / DockerSpawner have no profile_list (that is KubeSpawner).
 # allowed_images with more than one entry renders the spawn form.
 _lab_r440 = os.environ["DOCKER_NOTEBOOK_IMAGE_R440"]
 _lab_r460 = os.environ["DOCKER_NOTEBOOK_IMAGE_R460"]
@@ -158,7 +158,7 @@ c.DockerSpawner.pre_spawn_hook = _apply_image_defaults
 
 
 def _apply_user_options(spawner, user_options):
-    """JupyterHub 5.3 does not apply form values unless this hook is set."""
+    """JupyterHub does not apply form values unless this hook is set."""
     image = _resolve_selected_image(spawner, user_options)
     if not image:
         return
@@ -236,7 +236,7 @@ c.DockerSpawner.debug = True
 # Prometheus
 c.JupyterHub.authenticate_prometheus = False
 
-# Jupyterhub idle-culler-service
+# JupyterHub idle-culler (RBAC scopes; admin: True is JupyterHub < 2)
 c.JupyterHub.services = [
     {
         "name": "jupyterhub-idle-culler-service",
@@ -246,7 +246,18 @@ c.JupyterHub.services = [
             "jupyterhub_idle_culler",
             "--timeout=3600",
         ],
-        "admin": True,
+    }
+]
+c.JupyterHub.load_roles = [
+    {
+        "name": "jupyterhub-idle-culler",
+        "description": "Cull idle servers",
+        "scopes": [
+            "list:users",
+            "read:users:activity",
+            "admin:servers",
+        ],
+        "services": ["jupyterhub-idle-culler-service"],
     }
 ]
 
@@ -271,15 +282,19 @@ c.JupyterHub.redirect_to_server = False
 c.JupyterHub.default_url = "/hub/home"
 c.JupyterHub.template_paths = ["/srv/jupyterhub/templates"]
 
-# Skip OAuth consent screen for single-user servers
-c.JupyterHub.oauth_no_confirm = True
+# Skip OAuth consent screen for single-user servers (removed in JupyterHub 6).
+from jupyterhub.app import JupyterHub as _JupyterHubApp
+
+if "oauth_no_confirm" in _JupyterHubApp.class_traits():
+    c.JupyterHub.oauth_no_confirm = True
 # ---------------------------
-# Disable browser caching for Hub pages/assets
-c.JupyterHub.extra_headers = {
-    "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
-    "Pragma": "no-cache",
-    "Expires": "0",
-}
+# Disable browser caching for Hub pages/assets (removed in JupyterHub 6).
+if "extra_headers" in _JupyterHubApp.class_traits():
+    c.JupyterHub.extra_headers = {
+        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+        "Pragma": "no-cache",
+        "Expires": "0",
+    }
 # Also prevent long-lived caching of Hub static files
 c.JupyterHub.tornado_settings = {"static_cache_max_age": 0}
 # ---------------------------

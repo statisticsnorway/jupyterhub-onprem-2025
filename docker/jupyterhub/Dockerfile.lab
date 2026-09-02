@@ -242,7 +242,7 @@ RUN /opt/scripts/install-quarto.sh && \
     /opt/scripts/install-texlive-packages.sh
 
 # Install Node.js (required for JupyterLab 4.x extensions)
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
     apt-get install -y nodejs && \
     node --version && npm --version
 
@@ -252,7 +252,7 @@ RUN /opt/scripts/install-jupyterlab.sh && \
     python3 -m pip install --upgrade pip && \
     python3 -m pip install jupyterlab-git && \
     python3 -m pip install nbdime && \
-    python3 -m pip install jupyterhub && \
+    python3 -m pip install jupyterhub==6.0.0 && \
     python3 -m pip install nbstripout && \
     python3 -m pip install jupyterlab-quarto && \
     python3 -m pip install jupytext && \
@@ -308,7 +308,7 @@ RUN /opt/scripts/pipx_install_packages.sh && \
 # Install tiny labextension to open Hub Control Panel in same tab to fix sluggish terminal loading
 WORKDIR /opt/jupyter-ext/hub-control-panel-same-tab
 COPY ./labextensions/hub-control-panel-same-tab /opt/jupyter-ext/hub-control-panel-same-tab
-RUN npm ci || npm install && \
+RUN npm install && \
     npm run build && \
     jupyter labextension install . --no-build
 
