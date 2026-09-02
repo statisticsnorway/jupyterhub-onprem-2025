@@ -11,32 +11,8 @@ fi
 
 tlmgr update --self
 
-tlmgr install titling
+# Already used by the image before the Lab-collection copy.
+tlmgr install amsfonts booktabs
 
-tlmgr install textpos
-
-tlmgr install amsfonts
-
-tlmgr install booktabs
-
-tlmgr install tcolorbox
-
-tlmgr install environ
-
-tlmgr install etoolbox
-
-tlmgr install ulem soul
-
-tlmgr install pdfcol
-
-tlmgr install parskip
-
-tlmgr install caption
-
-tlmgr install collection-latexrecommended
-
-tlmgr install collection-latexextra
-
-tlmgr install collection-fontsrecommended
-
-tlmgr install collection-xetex
+# pandoc 3.10.2 pdf_document template (R_test_markdown.Rmd): hard \usepackage{caption,bookmark}
+tlmgr install caption bookmark

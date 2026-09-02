@@ -295,7 +295,7 @@ RUN apt-get update && \
 
 ENV PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/texlive/bin/linux:/usr/lib/rstudio-server/bin:/usr/lib/rstudio-server/bin/quarto/bin:/usr/lib/rstudio-server/bin/postback:/usr/local/texlive/bin/x86_64-linux:${PATH}"
 
-# Same TeX packages as Lab (docker/jupyterhub/scripts/install-texlive-packages.sh)
+# Extra tlmgr packages on top of Rocker TeX Live (see scripts/install-texlive-packages.sh)
 RUN /opt/install-texlive-packages.sh && \
     rm -rf /usr/local/texlive/*/tlpkg/backups
 
